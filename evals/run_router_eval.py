@@ -10,6 +10,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+from eval_harness.storage import ResultsDB
+
 from support_agent.config import SPLITS
 from support_agent.router import FinetunedOllamaRouter, KnnRouter, LoraRouter, PromptRouter
 
@@ -25,11 +27,14 @@ def load():
              for line in (SPLITS / "test.jsonl").read_text().splitlines()]
     items += [{**json.loads(line), "source": "product_handwritten"}
               for line in (HERE / "product_inquiry_test.jsonl").read_text().splitlines()]
-    human = HERE / "human_product_questions.txt"
-    if human.exists():
-        items += [{"instruction": line.strip(), "intent": "product_inquiry", "source": "human"}
-                  for line in human.read_text().splitlines()
-                  if line.strip() and not line.startswith("#")]
+    for filename, source in [("claude_product_questions.txt", "product_claude_hard"),
+                             ("human_product_questions.txt", "human")]:
+        path = HERE / filename
+        if path.exists():
+            items += [{"instruction": line.strip(), "intent": "product_inquiry",
+                       "source": source}
+                      for line in path.read_text().splitlines()
+                      if line.strip() and not line.startswith("#")]
     return items
 
 
@@ -73,6 +78,11 @@ def main():
     out = HERE / "results" / f"router-{tag}-{datetime.now():%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "results": rows}, indent=2))
+    # Also record the run in ml-eval-harness, for `evalrun compare` and its dashboard.
+    ResultsDB(str(HERE / "results" / "results.db")).save_external_run(
+        model=router.name, dataset="router-heldout", accuracy=summary["accuracy"],
+        latencies_ms=[latency * 1000 for latency in latencies], details=rows,
+        extra={"by_source": by_source})
 
 
 if __name__ == "__main__":

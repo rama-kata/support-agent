@@ -1118,7 +1118,7 @@ wheels = [
 [[package]]
 name = "ml-eval-harness"
 version = "0.1.0"
-source = { git = "https://github.com/rama-kata/ml-eval-harness#575dccd1b0884be6ef5c6ead79d360762c6bc338" }
+source = { git = "https://github.com/rama-kata/ml-eval-harness#2adb51a2f1774b9614e0bf29a964d9482ff0ae01" }
 dependencies = [
     { name = "click" },
     { name = "httpx" },

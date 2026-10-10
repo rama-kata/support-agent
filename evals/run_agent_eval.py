@@ -140,6 +140,13 @@ def main():
     out = HERE / "results" / f"agent-{datetime.now():%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "results": results}, indent=2))
+    from eval_harness.storage import ResultsDB
+
+    # Also record the run in ml-eval-harness, for `evalrun compare` and its dashboard.
+    ResultsDB(str(HERE / "results" / "results.db")).save_external_run(
+        model=f"agent:{model}+{router.name}", dataset="agent-scenarios",
+        accuracy=summary["pass_rate"], latencies_ms=[r["latency_s"] * 1000 for r in results],
+        details=results, extra={k: v for k, v in summary.items() if k != "by_category"})
     print(f"saved {out}")
 
 

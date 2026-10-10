@@ -19,17 +19,21 @@ The hard set covers typos, multi-turn context ("ok, cancel it"), no order number
 
 Both routers pass everything, so routing accuracy doesn't limit the agent on this set. The fine-tuned run is slower end to end because a second model shares the GPUs with the 14B agent model; the router call itself is faster.
 
-### Intent router (285 held-out messages, 28 intents)
+### Intent router (325 held-out messages, 28 intents)
 
-| Router | Bitext held-out (270) | Product, hand-written (15) | Latency p50 | Training |
-|---|---|---|---|---|
-| Prompting: qwen2.5:3b, intent list in prompt | 80.7% | 93.3% | 127ms | none |
-| Retrieval: kNN vote over bge-small embeddings | 97.4% | 100% | 55ms | none |
-| **Fine-tuned: QLoRA on Qwen2.5-3B, served by Ollama (q4_K_M)** | **98.1%** | **100%** | **50ms** | 12 min, RTX 3060 |
-| Same adapter in transformers (4-bit bitsandbytes) | 99.3% | 100% | 253ms | (same) |
+| Router | Bitext held-out (270) | Product, simple (15) | Product, hard (40) | Latency p50 | Training |
+|---|---|---|---|---|---|
+| Prompting: qwen2.5:3b, intent list in prompt | 80.7% | 93.3% | 87.5% | 124ms | none |
+| Retrieval: kNN vote over bge-small embeddings | 97.4% | 100% | 100% | 55ms | none |
+| **Fine-tuned: QLoRA on Qwen2.5-3B, served by Ollama (q4_K_M)** | **98.1%** | **100%** | **100%** | **50ms** | 12 min, RTX 3060 |
+| Same adapter in transformers (4-bit bitsandbytes) | 99.3% | 100% | not run | 253ms | (same) |
+
+The product sets were written by hand (by Claude, not by the model that generated the synthetic training data). The hard set uses slang, typos and brand nicknames ("yo do yall have hennessy", "need a 30 rack of natty light, is it back yet"). Every message in them is a product question, so they measure recall for that intent, not false positives; the Bitext set covers those. A set written by a person is planned (`evals/human_product_questions.txt`).
+
+Each run is also recorded in [ml-eval-harness](https://github.com/rama-kata/ml-eval-harness) (`evals/results/results.db`), so `uv run evalrun compare --db evals/results/results.db` lists them side by side.
 
 - **Fine-tuning vs. prompting the same model:** +17 points and 2.5× faster. The fine-tuned prompt is one line; the baseline's lists all 28 intents.
-- **kNN is the default** because it needs no training and is within a point of the fine-tuned router on this data. Bitext's phrasing is uniform, which favours retrieval. A test on human-written messages unlike the training data is next.
+- **kNN is the default** because it needs no training and is within a point of the fine-tuned router on this data. Bitext's phrasing is uniform, which favours retrieval.
 - **Quantization cost:** 99.3% → 98.1% going from the bf16-merged adapter to Ollama's 4-bit model, for 5× lower latency.
 
 ## Architecture
