@@ -1,0 +1,17 @@
+# systemd user service for the demo API. Install:
+#   cp deploy/support-agent-api.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now support-agent-api
+# Stop the public demo: systemctl --user stop support-agent-api && tailscale funnel reset
+[Unit]
+Description=Cellar & Co. support agent API (FastAPI + LangGraph)
+After=network-online.target ollama.service
+
+[Service]
+WorkingDirectory=%h/support-agent
+Environment=SUPPORT_AGENT_CORS_REGEX=^https://cellar[a-z0-9-]*[.]vercel[.]app$
+ExecStart=%h/.local/bin/uv run --frozen uvicorn support_agent.api:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

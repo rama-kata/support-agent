@@ -47,3 +47,16 @@ def test_verifier_notes_do_not_start_a_new_turn():
 
     msgs = turn(("cancel_order", {"ok": True})) + [HumanMessage(content="check", name=VERIFIER)]
     assert unbacked_claims(msgs, "Your order has been cancelled.") == []
+
+
+def test_offers_and_let_me_promises_are_flagged():
+    for reply in ["I can cancel your order now. Let me do that for you.",
+                  "Let me cancel that order for you.",
+                  "I'll go ahead and cancel ORD-1.",
+                  "Let me submit a refund for you."]:
+        assert unbacked_claims(turn(), reply), reply
+
+
+def test_questions_about_cancelling_are_not_claims():
+    assert unbacked_claims(turn(), "Would you like me to cancel ORD-1?") == []
+    assert unbacked_claims(turn(), "You can cancel orders while they are processing.") == []

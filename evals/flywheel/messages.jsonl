@@ -1,0 +1,60 @@
+{"topic": "tasting_events", "split": "feedback", "text": "do you guys do wine tastings?"}
+{"topic": "tasting_events", "split": "feedback", "text": "when is the next tasting event"}
+{"topic": "tasting_events", "split": "feedback", "text": "how much does the friday tasting cost"}
+{"topic": "tasting_events", "split": "feedback", "text": "can I book a private tasting for my book club"}
+{"topic": "tasting_events", "split": "feedback", "text": "is there a wine tasting this weekend?"}
+{"topic": "tasting_events", "split": "feedback", "text": "do i need to reserve for the tasting or just show up"}
+{"topic": "tasting_events", "split": "feedback", "text": "what time does the tasting start"}
+{"topic": "tasting_events", "split": "feedback", "text": "any events at the rockville store this month"}
+{"topic": "tasting_events", "split": "feedback", "text": "I'd like to sign up for a wine tasting"}
+{"topic": "tasting_events", "split": "feedback", "text": "do you host tasting nights"}
+{"topic": "tasting_events", "split": "feedback", "text": "can I bring friends to the tasting"}
+{"topic": "tasting_events", "split": "feedback", "text": "how do i rsvp for a tasting"}
+{"topic": "tasting_events", "split": "feedback", "text": "is the tasting free?"}
+{"topic": "tasting_events", "split": "feedback", "text": "want to do a tasting for my team, 12 people, possible?"}
+{"topic": "tasting_events", "split": "feedback", "text": "what wines are you pouring at friday's event"}
+{"topic": "tasting_events", "split": "test", "text": "yo when's the next wine night", "facts": [["friday"]]}
+{"topic": "tasting_events", "split": "test", "text": "Do you offer any tasting experiences at your store?", "facts": [["friday"]]}
+{"topic": "tasting_events", "split": "test", "text": "how much is it to attend a tasting", "facts": [["$15"]]}
+{"topic": "tasting_events", "split": "test", "text": "planning a bachelorette, can we do a private tasting with 10 people", "facts": [["$35", "2 weeks", "two weeks"]]}
+{"topic": "tasting_events", "split": "test", "text": "r u doing a tasting this friday", "facts": [["6pm", "6 pm", "6:00", "6-8", "6 to 8"]]}
+{"topic": "tasting_events", "split": "test", "text": "I heard you have weekly tastings, how does that work?", "facts": [["friday"], ["$15"]]}
+{"topic": "tasting_events", "split": "test", "text": "can i reserve 2 spots for the tasting", "facts": [["cellarandco.example/events"]]}
+{"topic": "tasting_events", "split": "test", "text": "what's the cost of the friday wine event and is it worth it", "facts": [["$15"]]}
+{"topic": "tasting_events", "split": "test", "text": "do you have any upcoming wine events", "facts": [["friday"]]}
+{"topic": "tasting_events", "split": "test", "text": "corporate tasting for 15 ppl how far ahead do i book", "facts": [["2 weeks", "two weeks"]]}
+{"topic": "tasting_events", "split": "test", "text": "is there an age limit for the tastings", "facts": [["21"]]}
+{"topic": "tasting_events", "split": "test", "text": "whats the schedule for tastings", "facts": [["friday"]]}
+{"topic": "tasting_events", "split": "test", "text": "Could my wife and I join a tasting next week?", "facts": [["friday"]]}
+{"topic": "tasting_events", "split": "test", "text": "do tastings happen every week or just sometimes", "facts": [["friday", "every week", "weekly"]]}
+{"topic": "tasting_events", "split": "test", "text": "how do the tasting nights work, do i pay at the door", "facts": [["$15"]]}
+{"topic": "gift_cards", "split": "feedback", "text": "do you sell gift cards?"}
+{"topic": "gift_cards", "split": "feedback", "text": "how do I check my gift card balance"}
+{"topic": "gift_cards", "split": "feedback", "text": "can i buy a gift card online"}
+{"topic": "gift_cards", "split": "feedback", "text": "do your gift cards expire"}
+{"topic": "gift_cards", "split": "feedback", "text": "I lost my gift card, can it be replaced?"}
+{"topic": "gift_cards", "split": "feedback", "text": "what amounts do gift cards come in"}
+{"topic": "gift_cards", "split": "feedback", "text": "can I use a gift card in the store"}
+{"topic": "gift_cards", "split": "feedback", "text": "want to get my dad a gift card for his birthday"}
+{"topic": "gift_cards", "split": "feedback", "text": "is there a digital gift card option"}
+{"topic": "gift_cards", "split": "feedback", "text": "can i pay with a gift card and a credit card together"}
+{"topic": "gift_cards", "split": "feedback", "text": "how fast does an e-gift card arrive"}
+{"topic": "gift_cards", "split": "feedback", "text": "max amount for a gift card?"}
+{"topic": "gift_cards", "split": "feedback", "text": "my gift card isn't working at checkout"}
+{"topic": "gift_cards", "split": "feedback", "text": "can my 19 year old use a gift card here"}
+{"topic": "gift_cards", "split": "feedback", "text": "where do I buy a physical gift card"}
+{"topic": "gift_cards", "split": "test", "text": "u guys have gift cards", "facts": [["$25", "$500", "email", "digital"]]}
+{"topic": "gift_cards", "split": "test", "text": "Is it possible to purchase an e-gift card for a friend?", "facts": [["email"]]}
+{"topic": "gift_cards", "split": "test", "text": "found an old gift card from 2 years ago, is it still good", "facts": [["never expire", "don't expire", "do not expire", "no expiration", "won't expire", "will not expire", "doesn't expire", "does not expire"]]}
+{"topic": "gift_cards", "split": "test", "text": "how much money is left on my gift card", "facts": [["cellarandco.example/giftcards"]]}
+{"topic": "gift_cards", "split": "test", "text": "whats the smallest gift card i can get", "facts": [["$25"]]}
+{"topic": "gift_cards", "split": "test", "text": "can I email someone a gift card today", "facts": [["email", "instantly"]]}
+{"topic": "gift_cards", "split": "test", "text": "do gift cards work on the website too", "facts": [["online"]]}
+{"topic": "gift_cards", "split": "test", "text": "i misplaced the gift card my sister gave me, any way to get it back", "facts": [["receipt"]]}
+{"topic": "gift_cards", "split": "test", "text": "thinking of a $100 gift card for my boss, how do i send it", "facts": [["email"]]}
+{"topic": "gift_cards", "split": "test", "text": "are there expiration dates on your gift cards", "facts": [["never expire", "don't expire", "do not expire", "no expiration", "won't expire", "will not expire", "doesn't expire", "does not expire"]]}
+{"topic": "gift_cards", "split": "test", "text": "can gift cards be used for kegs", "facts": [["in store", "online", "21"]]}
+{"topic": "gift_cards", "split": "test", "text": "gift card balance check pls", "facts": [["cellarandco.example/giftcards"]]}
+{"topic": "gift_cards", "split": "test", "text": "Do you sell physical gift cards or only electronic ones?", "facts": [["physical"], ["email", "digital", "electronic"]]}
+{"topic": "gift_cards", "split": "test", "text": "can i get a gift card for $1000", "facts": [["$500"]]}
+{"topic": "gift_cards", "split": "test", "text": "does a gift card ever run out if i dont use it", "facts": [["never expire", "don't expire", "do not expire", "no expiration", "won't expire", "will not expire", "doesn't expire", "does not expire"]]}

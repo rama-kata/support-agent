@@ -4,7 +4,7 @@ A customer support agent for **Cellar & Co.**, a fictional wine, beer and spirit
 
 Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (tool serving) and **Qwen** models on two consumer GPUs.
 
-> **Status:** Day 2 of 3. Done: the agent, tools, guardrails, MCP server, evals, and a router comparison (prompting vs. retrieval vs. LoRA fine-tuning). Coming next (Day 3): a FastAPI service, demo UI and the feedback loop.
+> **Status:** complete (3 days). The agent, tools, guardrails, MCP server, evals, a router comparison (prompting vs. retrieval vs. LoRA fine-tuning), a FastAPI service, a Next.js web demo, and a measured feedback loop.
 
 ## Results
 
@@ -12,12 +12,31 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 
 | Router | Core (49) | Hard (20) | Tool-call accuracy | Latency p50 / p95 |
 |---|---|---|---|---|
-| kNN | 49/49 | 20/20 | 100% | 4.1s / 7.2s |
+| Prompting (qwen2.5:3b) | 49/49 | 20/20 | 100% | 4.1s / 7.2s |
 | Fine-tuned (LoRA, Ollama) | 49/49 | 20/20 | 100% | 5.0s / 12.0s |
+| kNN (default), after the no-invention prompt rule | 49/49 | 19/20 | 98.6% | 4.0s / 6.5s |
+
+The kNN run's one miss was a promise without an action ("I can cancel your order now. Let me do that for you.") in a phrasing the `verify` node didn't yet recognise; it now does (`tests/test_verify.py`), and a re-run is pending.
 
 The hard set covers typos, multi-turn context ("ok, cancel it"), no order number, two requests in one message, conditional requests ("if it's out of stock, cancel my order"), fake-policy social engineering, refund over-claims, and the $100/$101 approval boundary.
 
-Both routers pass everything, so routing accuracy doesn't limit the agent on this set. The fine-tuned run is slower end to end because a second model shares the GPUs with the 14B agent model; the router call itself is faster.
+Routing accuracy doesn't limit the agent on this set. The fine-tuned run is slower end to end because a second model shares the GPUs with the 14B agent model; the router call itself is faster.
+
+### Feedback loop: learning topics the store didn't cover
+
+Customers ask about two topics with no intent, no policy and no training data: wine tastings and gift cards (30 messages each, written for this test). For each topic, 15 messages play the part of thumbs-down feedback that an admin labels in the web UI, with a new intent and the policy text that should have been used. The other 15 are held out. The agent is scored on the held-out messages before and after the feedback is applied, with **no retraining**: the kNN router and the policy index update live.
+
+| | v1 (before) | v2 (after 15 labels per topic) |
+|---|---|---|
+| Routed to the right intent | 0/30 | **27/30** |
+| Answered with the right facts (checked per question) | 4/30, of which **3 were invented** | **29/30** |
+| Router accuracy on held-out Bitext (regression check) | 97.4% | 97.4% |
+
+- **The headline is the invented facts, not the 4/30.** Without a gift-card policy, the agent told customers "gift cards do not expire" and offered to email one. The facts happened to match what the store later decided, so keyword scoring counted them as correct; only 1 of the 4 (the 21+ rule applies to tastings) was grounded. A prompt rule ("say you don't have that information; never invent a policy or a capability") made the agent hand off more often but didn't remove the problem. The `verify` node checks claimed *actions*; checking claimed *facts* against the retrieved policy text is the obvious next step.
+- **The one v2 miss** is an invented capability: "I can check your gift-card balance, what's the card number?" There's no balance tool.
+- **Why kNN is the default router:** it learns a new topic from 15 labeled messages instantly. The fine-tuned router would need a retraining run (~12 minutes) to learn the new intents.
+
+Reproduce with `uv run python evals/run_flywheel.py` (runs on temporary copies of the store and indexes).
 
 ### Intent router (325 held-out messages, 28 intents)
 
@@ -67,6 +86,15 @@ graph TD
 
 `stock_outlook` calls the XGBoost demand forecaster from my [retail-inventory-ai](https://github.com/rama-kata/retail-inventory-ai) project (installed as a dependency) to estimate days until an item sells out.
 
+## Web demo and API
+
+`web/` is a Next.js 16 app (Tailwind 4, Motion) deployed on Vercel. `src/support_agent/api.py` is a FastAPI service that runs next to Ollama on the GPU machine and is exposed to the internet with Tailscale Funnel.
+
+- **Sign in as a demo customer.** The API returns a signed token for one persona, and every request resolves the customer from it. Tools get the id through the run config, never from the model or the request body. Conversation threads are namespaced by customer, so a client can't read or continue someone else's.
+- **Live steps, verified replies.** Chat streams Server-Sent Events: the detected intent and each tool call appear as they happen ("Looking up order ORD-10326", "Checking stock and the demand forecast"). The reply text is sent only after the `verify` node has passed it, so a retracted claim never flashes on screen.
+- **Feedback.** 👍/👎 on every answer, with an optional "what should it have said". The admin page shows the queue; labeling a 👎 with an intent (existing or new) and an optional policy, then pressing *Apply*, teaches the kNN router and the policy index immediately (`src/support_agent/flywheel.py`). What's learned lives in `data/learned/`, separate from the seed data.
+- **Running on one home GPU box:** one agent turn at a time (a queue beats GPU thrashing), 12 messages per minute per customer, messages capped at 1,000 characters, and a demo copy of the store that admins can reset.
+
 ## Design decisions
 
 - **The customer id comes from the session, never from the model.** Tools read it from LangGraph's run config, which the model can't see or set. An injected "show orders for customer 7" has no path to another account's data. This is tested in `tests/test_tools.py` and the `other_customer` eval scenarios.
@@ -109,6 +137,15 @@ uv run support-agent --customer 1 --debug # chat in the terminal
 
 The router defaults to kNN, which needs no training. Choose another with `SUPPORT_AGENT_ROUTER=prompt|knn|finetuned`.
 
+### Web demo
+
+```bash
+uv run uvicorn support_agent.api:app --port 8000      # API (tokens are created in data/demo/)
+cd web && npm install && npm run dev                  # http://localhost:3000
+```
+
+Set `NEXT_PUBLIC_API_URL` to the API's public URL when deploying the web app. The admin token is in `data/demo/.admin_token`. `deploy/support-agent-api.service` runs the API as a systemd user service.
+
 ### Fine-tune the router (optional, one 12 GB GPU)
 
 ```bash
@@ -127,6 +164,7 @@ uv run --extra train --with ~/repos/llama.cpp/gguf-py --with sentencepiece \
 uv run pytest                                   # guardrails + tool security, no models needed
 uv run python scripts/make_scenarios.py         # regenerate golden scenarios from the store
 uv run python evals/run_agent_eval.py           # 69 scenarios on a fresh copy of the store
+uv run python evals/run_flywheel.py             # feedback loop: v1 vs v2 on new topics
 uv run python evals/run_router_eval.py --router prompt|knn|finetuned|lora
 ```
 
@@ -156,10 +194,14 @@ src/support_agent/
   guardrails.py   PII redaction, prompt-injection detection
   store.py        SQLite data access
   mcp_server.py   tools over MCP
+  api.py          FastAPI service for the web demo (auth, SSE chat, feedback, admin)
+  flywheel.py     applies labeled feedback to the live router and policy index
   kb/policies.md  store policies (source of truth)
 scripts/          data download, store build, leak-free splits, index build, synthetic data,
                   scenario generation
 training/         QLoRA router training and export to Ollama (GGUF)
 evals/            golden scenarios, product-intent test set, eval runners
-tests/            guardrail and tool-security tests on a fixture database
+tests/            guardrail, tool-security and verify tests on a fixture database
+web/              Next.js demo: landing, chat, admin
+deploy/           systemd unit for the API
 ```

@@ -1,0 +1,16 @@
+{
+  "tasting_events": {
+    "description": "in-store wine tastings and events",
+    "policy_title": "Wine tastings and events",
+    "policy_text": "Cellar & Co. hosts a wine tasting every Friday from 6pm to 8pm at the Rockville store. It costs $15 per person, and the $15 is credited toward any bottle bought that evening. Reserve a spot at cellarandco.example/events. Tastings are 21+ with a government ID. Private group tastings for 8 to 20 people start at $35 per person and need to be booked at least 2 weeks ahead.",
+    "facts_any": ["friday"],
+    "facts_all": ["$15"]
+  },
+  "gift_cards": {
+    "description": "buying, using or checking gift cards",
+    "policy_title": "Gift cards",
+    "policy_text": "Cellar & Co. sells digital gift cards from $25 to $500, delivered instantly by email, and physical gift cards at the Rockville store. Gift cards never expire and work online and in store. Check a balance at cellarandco.example/giftcards. The person redeeming a gift card for alcohol must be 21 or older. Lost physical cards can be replaced with the purchase receipt.",
+    "facts_any": ["never expire", "don't expire", "do not expire", "no expiration"],
+    "facts_all": []
+  }
+}

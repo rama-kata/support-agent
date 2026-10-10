@@ -95,11 +95,13 @@ def training_examples() -> list[dict]:
 
 class KnnRouter:
     """Retrieval: label = similarity-weighted vote of the k nearest training messages.
-    No LLM call; the embeddings of ~26K training messages are computed once and cached."""
+    No LLM call. Seed embeddings (~23K messages) are computed once and cached; examples
+    learned from feedback are added at runtime with add_examples and used immediately."""
 
     name = "knn"
 
-    def __init__(self, k: int = 10):
+    def __init__(self, k: int = 10, learned: bool = True):
+        from support_agent.flywheel import Learned
         from support_agent.retrieval import embed_model
 
         self.k = k
@@ -110,11 +112,22 @@ class KnnRouter:
         if cache.exists() and json.loads(str(np.load(cache)["texts"])) == texts:
             self.vectors = np.load(cache)["vectors"]
         else:
-            vectors = np.array(self.embed.get_text_embedding_batch(texts, show_progress=True))
-            self.vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+            self.vectors = self._embed(texts)
             np.savez(cache, vectors=self.vectors, texts=json.dumps(texts))
         self.labels = [e["intent"] for e in examples]
         self.name = f"knn:k={k}"
+        if learned:
+            self.add_examples(Learned.load().examples)
+
+    def _embed(self, texts: list[str]) -> np.ndarray:
+        vectors = np.array(self.embed.get_text_embedding_batch(texts, show_progress=len(texts) > 500))
+        return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+    def add_examples(self, examples: list[dict]):
+        if not examples:
+            return
+        self.vectors = np.vstack([self.vectors, self._embed([e["instruction"] for e in examples])])
+        self.labels += [e["intent"] for e in examples]
 
     def classify(self, text: str) -> str:
         query = np.array(self.embed.get_query_embedding(text))

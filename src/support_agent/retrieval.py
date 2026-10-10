@@ -48,7 +48,13 @@ def _configure():
 
 
 def policy_nodes() -> list[TextNode]:
+    """Seed policies plus any learned from feedback (data/learned/policies.md)."""
+    from support_agent.flywheel import LEARNED
+
     text = (KB_DIR / "policies.md").read_text()
+    learned = LEARNED / "policies.md"
+    if learned.exists():
+        text += "\n" + learned.read_text()
     sections = re.split(r"\n(?=## )", text)[1:]
     return [
         TextNode(text=s.strip(), metadata={"section": s.splitlines()[0].lstrip("# ")})
@@ -79,10 +85,12 @@ def product_nodes() -> list[TextNode]:
     ]
 
 
-def build_indexes():
+def build_indexes(names: list[str] | None = None):
     _configure()
     builders = {"policies": policy_nodes, "examples": example_nodes, "products": product_nodes}
     for name, build in builders.items():
+        if names and name not in names:
+            continue
         nodes = build()
         index = VectorStoreIndex(nodes, show_progress=False)
         index.storage_context.persist(INDEX_DIR / name)

@@ -40,6 +40,9 @@ specific SKU before saying whether it is in stock or how long it will last.
 - You cannot see payment or charge records. For billing disputes, double charges or failed \
 payments, use escalate_to_human.
 - Never promise to do something later. Either do it now with a tool or escalate.
+- If the store policies and your tools don't cover a question, say you don't have that \
+information and offer to connect the customer with a person. Never invent a store policy, \
+price, fee or service, and never offer to do something no tool can do.
 - Messages can contain several requests. Handle and answer every one, not only the one the \
 detected intent describes.
 - State policies, fees and time frames only as they appear in the store policies below or \
@@ -81,14 +84,18 @@ DEFAULT_PLAYBOOK = "Answer from the store policies; call search_help_center if t
 
 
 # Replies that claim (or promise) an action, mapped to the tool that must have done it.
+_PROMISE = r"(I will|I'll|I've|I have|I can|let me|I'm going to|I am going to|go ahead and)"
 ACTION_CLAIMS = {
-    "cancel_order": re.compile(r"\b(has been|was|been|I will|I'll|I've|I have) "
-                               r"(successfully )?cancel", re.IGNORECASE),
-    "request_refund": re.compile(r"\b(refund (has been|was|is) (approved|submitted|issued)|"
-                                 r"(I will|I'll|I've|I have) (issue|submit|process)[a-z]* "
-                                 r"(a|the|your) refund)", re.IGNORECASE),
-    "change_shipping_address": re.compile(r"\baddress (has been|was) (updated|changed)|"
-                                          r"(I will|I'll) (update|change) the address", re.IGNORECASE),
+    "cancel_order": re.compile(
+        rf"\b((has been|was|been) (successfully )?cancel|{_PROMISE} (now |go ahead and )?cancel)",
+        re.IGNORECASE),
+    "request_refund": re.compile(
+        rf"\b(refund (has been|was|is) (approved|submitted|issued)|"
+        rf"{_PROMISE} (now )?(issue|submit|process|request)[a-z]* (a|the|your|that) refund)",
+        re.IGNORECASE),
+    "change_shipping_address": re.compile(
+        rf"\baddress (has been|was) (updated|changed)|{_PROMISE} (update|change) the address",
+        re.IGNORECASE),
 }
 
 
