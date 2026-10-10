@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from rich.console import Console
 
 from support_agent import store
-from support_agent.graph import build_graph, run_turn
+from support_agent.graph import build_graph, run_turn, turn_reply
 
 
 def main():
@@ -44,7 +44,7 @@ def main():
                         console.print(f"[dim]  -> {call['name']}({json.dumps(call['args'])})[/]")
                 elif isinstance(msg, ToolMessage):
                     console.print(f"[dim]  <- {msg.content[:160]}[/]")
-        console.print(f"[bold green]agent>[/] {state['messages'][-1].content}")
+        console.print(f"[bold green]agent>[/] {turn_reply(state['messages'])}")
 
 
 if __name__ == "__main__":

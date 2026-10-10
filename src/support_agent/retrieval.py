@@ -34,12 +34,17 @@ def expand_name(name: str) -> str:
     return " ".join(ABBREVIATIONS.get(word, word) for word in name.split())
 
 
-def _configure():
-    Settings.embed_model = HuggingFaceEmbedding(
+@lru_cache(maxsize=1)
+def embed_model() -> HuggingFaceEmbedding:
+    return HuggingFaceEmbedding(
         model_name=EMBED_MODEL, device="cpu",
         # bge models are trained with this prefix on queries (not on documents).
         query_instruction="Represent this sentence for searching relevant passages: ",
     )
+
+
+def _configure():
+    Settings.embed_model = embed_model()
 
 
 def policy_nodes() -> list[TextNode]:

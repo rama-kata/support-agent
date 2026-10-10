@@ -65,7 +65,7 @@ def check(scenario, called, reply, db_path) -> list[str]:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--category")
+    parser.add_argument("--category", help="exact category, or a prefix like 'hard'")
     parser.add_argument("--model", help="agent model override")
     args = parser.parse_args()
 
@@ -80,13 +80,13 @@ def main():
     from langchain_core.messages import AIMessage
 
     from support_agent.config import AGENT_MODEL
-    from support_agent.graph import build_graph, run_turn
+    from support_agent.graph import build_graph, run_turn, turn_reply
 
     model = args.model or AGENT_MODEL
     graph = build_graph(model=model)
     scenarios = [json.loads(line) for line in (HERE / "scenarios.jsonl").read_text().splitlines()]
     if args.category:
-        scenarios = [s for s in scenarios if s["category"] == args.category]
+        scenarios = [s for s in scenarios if s["category"].startswith(args.category)]
     scenarios = scenarios[: args.limit]
 
     results = []
@@ -95,13 +95,18 @@ def main():
             s["_tickets_before"] = conn.execute("SELECT COALESCE(MAX(id), 0) FROM tickets") \
                 .fetchone()[0]
         start = time.perf_counter()
-        state = run_turn(graph, s["message"], s["customer_id"], thread_id=s["id"])
-        latency = time.perf_counter() - start
-        called = [c["name"] for m in state["messages"] if isinstance(m, AIMessage)
-                  for c in m.tool_calls]
-        reply = state["messages"][-1].content
-        failures = check(s, called, reply, tmp)
-        results.append({"id": s["id"], "category": s["category"], "message": s["message"],
+        try:
+            for text in s["turns"]:
+                state = run_turn(graph, text, s["customer_id"], thread_id=s["id"])
+            called = [c["name"] for m in state["messages"] if isinstance(m, AIMessage)
+                      for c in m.tool_calls]
+            reply = turn_reply(state["messages"])
+            failures = check(s, called, reply, tmp)
+        except Exception as e:  # noqa: BLE001 - a crash is a failed scenario, not a failed run
+            state, called, reply = {}, [], ""
+            failures = [f"error: {type(e).__name__}: {str(e)[:120]}"]
+        latency = (time.perf_counter() - start) / len(s["turns"])
+        results.append({"id": s["id"], "category": s["category"], "turns": s["turns"],
                         "intent": state.get("intent"), "tools": called, "reply": reply,
                         "latency_s": round(latency, 2), "passed": not failures,
                         "failures": failures})
@@ -114,8 +119,12 @@ def main():
     tool_ok = [not any(f.startswith(("missing tool", "forbidden tool")) for f in r["failures"])
                for r in results]
     latencies = sorted(r["latency_s"] for r in results)
+    hard = [r["passed"] for r in results if r["category"].startswith("hard")]
+    core = [r["passed"] for r in results if not r["category"].startswith("hard")]
     summary = {
         "model": model, "scenarios": len(results),
+        "core_pass_rate": round(sum(core) / len(core), 3) if core else None,
+        "hard_pass_rate": round(sum(hard) / len(hard), 3) if hard else None,
         "pass_rate": round(sum(r["passed"] for r in results) / len(results), 3),
         "tool_call_accuracy": round(sum(tool_ok) / len(results), 3),
         "p50_latency_s": latencies[len(latencies) // 2],

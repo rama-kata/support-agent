@@ -11,10 +11,10 @@ from datetime import datetime
 from pathlib import Path
 
 from support_agent.config import SPLITS
-from support_agent.router import PromptRouter
+from support_agent.router import KnnRouter, LoraRouter, PromptRouter
 
 HERE = Path(__file__).parent
-ROUTERS = {"prompt": PromptRouter}
+ROUTERS = {"prompt": PromptRouter, "knn": KnnRouter, "lora": LoraRouter}
 
 
 def load():
@@ -27,9 +27,16 @@ def load():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--router", choices=ROUTERS, default="prompt")
+    parser.add_argument("--adapter", help="LoRA adapter directory (lora router only)")
+    parser.add_argument("--model", help="Ollama model (prompt router only)")
     args = parser.parse_args()
 
-    router = ROUTERS[args.router]()
+    kwargs = {}
+    if args.router == "lora" and args.adapter:
+        kwargs["adapter"] = args.adapter
+    if args.router == "prompt" and args.model:
+        kwargs["model"] = args.model
+    router = ROUTERS[args.router](**kwargs)
     items = load()
     rows, latencies = [], []
     for item in items:
@@ -48,7 +55,8 @@ def main():
         "top_confusions": [f"{a} -> {b} ({n})" for (a, b), n in confusions.most_common(8)],
     }
     print(json.dumps(summary, indent=2))
-    out = HERE / "results" / f"router-{args.router}-{datetime.now():%Y%m%d-%H%M%S}.json"
+    tag = router.name.replace(":", "-").replace("/", "-")
+    out = HERE / "results" / f"router-{tag}-{datetime.now():%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "results": rows}, indent=2))
 

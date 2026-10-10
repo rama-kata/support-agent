@@ -8,3 +8,4 @@ data/
 storage/
 results.db
 evals/results/
+models/

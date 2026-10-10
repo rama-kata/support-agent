@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.4"]
+train = ["transformers>=4.50", "peft>=0.15", "trl>=0.20", "bitsandbytes>=0.46",
+         "datasets>=3.0", "accelerate>=1.5"]
 
 [project.scripts]
 support-agent = "support_agent.cli:main"

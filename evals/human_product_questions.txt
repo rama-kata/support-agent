@@ -1,0 +1,9 @@
+# Write product questions the way a real customer would type them, one per line.
+# Lines starting with # are ignored. Aim for about 40. Mix it up:
+#   - typos, slang, no punctuation ("yo do yall have hennessy")
+#   - budgets and occasions ("red for a dinner party, nothing over 25 bucks")
+#   - stock and restock ("is the 30 rack of natty light back")
+#   - quantities ("need 4 cases of corona for saturday, u have enough?")
+#   - recommendations ("good bourbon for a gift?")
+# Don't worry about whether we actually sell it. Just write what a customer would ask.
+

@@ -1,19 +1,23 @@
 """The LangGraph support agent.
 
 guard -> blocked -> END
-      -> route -> context -> agent <-> tools -> END
-                         -> escalate -> tools -> agent -> END   (intents that must escalate)
+      -> route -> context -> agent <-> tools
+                         -> escalate -> tools -> agent          (intents that must escalate)
+agent (final reply) -> verify -> END, or back to agent once if the reply claims an action
+                                       that no successful tool call performed
 """
 
+import json
+import re
 import uuid
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.graph.message import add_messages
+from langgraph.graph.message import RemoveMessage, add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from support_agent import store
@@ -36,6 +40,8 @@ specific SKU before saying whether it is in stock or how long it will last.
 - You cannot see payment or charge records. For billing disputes, double charges or failed \
 payments, use escalate_to_human.
 - Never promise to do something later. Either do it now with a tool or escalate.
+- Messages can contain several requests. Handle and answer every one, not only the one the \
+detected intent describes.
 - State policies, fees and time frames only as they appear in the store policies below or \
 from search_help_center. The example conversations show tone only; their facts may be wrong.
 - If the customer clearly asks you to do something (cancel, refund, change address), do it \
@@ -74,12 +80,48 @@ PLAYBOOKS = {
 DEFAULT_PLAYBOOK = "Answer from the store policies; call search_help_center if they don't cover it."
 
 
+# Replies that claim (or promise) an action, mapped to the tool that must have done it.
+ACTION_CLAIMS = {
+    "cancel_order": re.compile(r"\b(has been|was|been|I will|I'll|I've|I have) "
+                               r"(successfully )?cancel", re.IGNORECASE),
+    "request_refund": re.compile(r"\b(refund (has been|was|is) (approved|submitted|issued)|"
+                                 r"(I will|I'll|I've|I have) (issue|submit|process)[a-z]* "
+                                 r"(a|the|your) refund)", re.IGNORECASE),
+    "change_shipping_address": re.compile(r"\baddress (has been|was) (updated|changed)|"
+                                          r"(I will|I'll) (update|change) the address", re.IGNORECASE),
+}
+
+
+VERIFIER = "verifier"
+
+
+def is_customer(m: AnyMessage) -> bool:
+    return isinstance(m, HumanMessage) and m.name != VERIFIER
+
+
+def unbacked_claims(messages: list[AnyMessage], reply: str) -> list[str]:
+    """Actions the reply claims that no successful tool call in this turn performed."""
+    turn_start = max(i for i, m in enumerate(messages) if is_customer(m))
+    done = set()
+    for m in messages[turn_start:]:
+        if isinstance(m, ToolMessage):
+            try:
+                if json.loads(m.content).get("ok"):
+                    done.add(m.name)
+            except (ValueError, AttributeError):
+                pass
+    return [tool for tool, claim in ACTION_CLAIMS.items()
+            if claim.search(reply) and tool not in done]
+
+
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     intent: str
     blocked: bool
     pii_found: list[str]
     context: str
+    verify_retries: int
+    verify_missing: list[str]
 
 
 def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpointer=None):
@@ -120,9 +162,44 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
                 "args": {"reason": state["intent"], "summary": text[:500]}}
         return {"messages": [AIMessage(content="", tool_calls=[call])]}
 
+    tools_by_name = {t.name: t for t in TOOLS}
+
     def agent(state: State):
         messages = [SystemMessage(content=state["context"]), *state["messages"]]
+        # On a verify retry, offer only the tools the reply claimed to have used: with
+        # fewer options a small model reliably makes the call instead of talking about it.
+        if missing := state.get("verify_missing"):
+            retry_llm = llm.bind_tools([tools_by_name[t] for t in missing])
+            return {"messages": [retry_llm.invoke(messages)], "verify_missing": []}
         return {"messages": [agent_llm.invoke(messages)]}
+
+    def verify(state: State, config: RunnableConfig):
+        reply = state["messages"][-1]
+        missing = unbacked_claims(state["messages"], reply.content)
+        # Verifier notes are internal; clear them from history once the turn settles.
+        notes = [RemoveMessage(id=m.id) for m in state["messages"]
+                 if isinstance(m, HumanMessage) and m.name == VERIFIER]
+        if not missing:
+            return {"messages": notes, "verify_retries": 0}
+        if state.get("verify_retries", 0) == 0:
+            # A user-role note plus only the claimed tools: in testing, qwen3 ignored the
+            # same note as a system message but reliably made the call this way.
+            note = (f"[automated check] Your reply claims an action ({', '.join(missing)}) "
+                    "that no tool call has done. Call the tool now if the customer asked for "
+                    "it; otherwise rewrite the reply without claiming it.")
+            return {"messages": [RemoveMessage(id=reply.id),
+                                 HumanMessage(content=note, name=VERIFIER)],
+                    "verify_retries": 1, "verify_missing": missing}
+        # Still unbacked after a retry: never ship a false claim. Hand off to a human.
+        customer_id = config["configurable"]["customer_id"]
+        request = next(m.content for m in reversed(state["messages"]) if is_customer(m))
+        ticket = store.add_ticket(customer_id, f"unverified_action:{','.join(missing)}",
+                                  request[:500])
+        return {"messages": [*notes, RemoveMessage(id=reply.id), AIMessage(content=(
+            "I wasn't able to complete that request automatically, so I've passed it to a "
+            f"member of our team (ticket #{ticket}). They'll follow up within 2 business "
+            "days, and nothing has been changed on your order yet."))],
+            "verify_retries": 0}
 
     graph = StateGraph(State)
     graph.add_node("guard", guard)
@@ -132,6 +209,7 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
     graph.add_node("escalate", escalate)
     graph.add_node("agent", agent)
     graph.add_node("tools", ToolNode(TOOLS))
+    graph.add_node("verify", verify)
 
     graph.add_edge(START, "guard")
     graph.add_conditional_edges("guard", lambda s: "blocked" if s["blocked"] else "route")
@@ -140,12 +218,22 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
     graph.add_conditional_edges(
         "context", lambda s: "escalate" if s["intent"] in ESCALATE_INTENTS else "agent")
     graph.add_edge("escalate", "tools")
-    graph.add_conditional_edges("agent", tools_condition)
+    graph.add_conditional_edges("agent", tools_condition, {"tools": "tools", END: "verify"})
     graph.add_edge("tools", "agent")
+    graph.add_conditional_edges(
+        "verify", lambda s: "agent" if s.get("verify_missing") else END)
     return graph.compile(checkpointer=checkpointer or InMemorySaver())
+
+
+def turn_reply(messages: list[AnyMessage]) -> str:
+    """Everything the agent said since the customer's last message, as a chat UI shows it
+    (text sent alongside a tool call is part of the reply too)."""
+    start = max(i for i, m in enumerate(messages) if is_customer(m))
+    return "\n\n".join(m.content for m in messages[start:]
+                       if isinstance(m, AIMessage) and m.content.strip())
 
 
 def run_turn(graph, text: str, customer_id: int, thread_id: str) -> dict:
     config = {"configurable": {"customer_id": customer_id, "thread_id": thread_id},
-              "recursion_limit": 12}
+              "recursion_limit": 20}
     return graph.invoke({"messages": [HumanMessage(content=text)]}, config)
