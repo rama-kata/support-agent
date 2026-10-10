@@ -9,7 +9,15 @@ import numpy as np
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
-from support_agent.config import DATA, INDEX_DIR, OLLAMA_URL, ROUTER_MODEL, SPLITS
+from support_agent.config import (
+    DATA,
+    FINETUNED_ROUTER_MODEL,
+    INDEX_DIR,
+    OLLAMA_URL,
+    ROUTER,
+    ROUTER_MODEL,
+    SPLITS,
+)
 
 INTENTS = {
     "cancel_order": "cancel an order",
@@ -117,6 +125,19 @@ class KnnRouter:
         return max(votes, key=votes.get)
 
 
+class FinetunedOllamaRouter:
+    """The LoRA router merged and served by Ollama (training/export_ollama.py): same weights
+    as LoraRouter, same engine as PromptRouter, and the app needs no PyTorch."""
+
+    def __init__(self, model: str = FINETUNED_ROUTER_MODEL):
+        self.name = f"finetuned:{model}"
+        self.llm = ChatOllama(model=model, base_url=OLLAMA_URL, temperature=0, num_predict=8)
+
+    def classify(self, text: str) -> str:
+        label = self.llm.invoke([("system", FINETUNE_SYSTEM), ("human", text)]).content.strip()
+        return label if label in INTENTS else _closest_intent(label)
+
+
 class LoraRouter:
     """Fine-tuned: a small Qwen model with a QLoRA adapter trained on the intent labels."""
 
@@ -156,3 +177,10 @@ def _closest_intent(label: str) -> str:
     from os.path import commonprefix
 
     return max(INTENTS, key=lambda i: len(commonprefix([i, label])))
+
+
+def default_router(kind: str = ROUTER) -> Router:
+    """The router named by SUPPORT_AGENT_ROUTER. Defaults to kNN: no training or GPU needed,
+    and 97% on held-out Bitext."""
+    return {"prompt": PromptRouter, "knn": KnnRouter,
+            "finetuned": FinetunedOllamaRouter}[kind]()

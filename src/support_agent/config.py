@@ -14,6 +14,9 @@ KB_DIR = Path(__file__).parent / "kb"
 OLLAMA_URL = os.getenv("SUPPORT_AGENT_OLLAMA_URL", "http://localhost:11434")
 AGENT_MODEL = os.getenv("SUPPORT_AGENT_MODEL", "qwen3:14b")
 ROUTER_MODEL = os.getenv("SUPPORT_AGENT_ROUTER_MODEL", "qwen2.5:3b")
+# prompt | knn | finetuned (finetuned needs training/export_ollama.py to have been run)
+ROUTER = os.getenv("SUPPORT_AGENT_ROUTER", "knn")
+FINETUNED_ROUTER_MODEL = os.getenv("SUPPORT_AGENT_FINETUNED_ROUTER", "support-router-3b")
 EMBED_MODEL = os.getenv("SUPPORT_AGENT_EMBED_MODEL", "BAAI/bge-small-en-v1.5")
 
 STORE_NAME = "Cellar & Co."

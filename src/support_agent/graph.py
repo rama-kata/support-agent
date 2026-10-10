@@ -24,7 +24,7 @@ from support_agent import store
 from support_agent.config import AGENT_MODEL, OLLAMA_URL, REFUND_AUTO_APPROVE_LIMIT, STORE_NAME
 from support_agent.guardrails import detect_injection, redact_pii
 from support_agent.retrieval import search
-from support_agent.router import PromptRouter, Router
+from support_agent.router import Router, default_router
 from support_agent.tools import TOOLS
 
 BLOCKED_REPLY = ("I can only help with your own orders and account, and I can't change how "
@@ -125,7 +125,7 @@ class State(TypedDict):
 
 
 def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpointer=None):
-    router = router or PromptRouter()
+    router = router or default_router()
     llm = ChatOllama(model=model, base_url=OLLAMA_URL, temperature=0, reasoning=False)
     agent_llm = llm.bind_tools(TOOLS)
 

@@ -67,6 +67,8 @@ def main():
     parser.add_argument("--limit", type=int)
     parser.add_argument("--category", help="exact category, or a prefix like 'hard'")
     parser.add_argument("--model", help="agent model override")
+    parser.add_argument("--router", choices=["prompt", "knn", "finetuned"],
+                        help="router override (default: SUPPORT_AGENT_ROUTER)")
     args = parser.parse_args()
 
     # Fresh store copy before support_agent is imported (config reads the env at import).
@@ -81,9 +83,11 @@ def main():
 
     from support_agent.config import AGENT_MODEL
     from support_agent.graph import build_graph, run_turn, turn_reply
+    from support_agent.router import default_router
 
     model = args.model or AGENT_MODEL
-    graph = build_graph(model=model)
+    router = default_router(args.router) if args.router else default_router()
+    graph = build_graph(router=router, model=model)
     scenarios = [json.loads(line) for line in (HERE / "scenarios.jsonl").read_text().splitlines()]
     if args.category:
         scenarios = [s for s in scenarios if s["category"].startswith(args.category)]
@@ -122,7 +126,7 @@ def main():
     hard = [r["passed"] for r in results if r["category"].startswith("hard")]
     core = [r["passed"] for r in results if not r["category"].startswith("hard")]
     summary = {
-        "model": model, "scenarios": len(results),
+        "model": model, "router": router.name, "scenarios": len(results),
         "core_pass_rate": round(sum(core) / len(core), 3) if core else None,
         "hard_pass_rate": round(sum(hard) / len(hard), 3) if hard else None,
         "pass_rate": round(sum(r["passed"] for r in results) / len(results), 3),
