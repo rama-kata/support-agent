@@ -1,0 +1,41 @@
+[project]
+name = "support-agent"
+version = "0.1.0"
+description = "Self-improving customer support agent for a wine & spirits retailer (LangGraph + RAG + LoRA + MCP)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "langgraph>=0.6",
+    "langchain-core>=0.3",
+    "langchain-ollama>=0.3",
+    "llama-index-core>=0.12",
+    "llama-index-embeddings-huggingface>=0.5",
+    "mcp>=1.10",
+    "pandas>=2.2",
+    "pydantic>=2.7",
+    "rich>=13.0",
+    "retail-inventory-ai",
+    "ml-eval-harness",
+    "kagglehub>=1.0.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[project.scripts]
+support-agent = "support_agent.cli:main"
+support-agent-mcp = "support_agent.mcp_server:main"
+
+[tool.uv.sources]
+retail-inventory-ai = { git = "https://github.com/rama-kata/retail-inventory-ai" }
+ml-eval-harness = { git = "https://github.com/rama-kata/ml-eval-harness" }
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
