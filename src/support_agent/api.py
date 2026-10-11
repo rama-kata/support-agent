@@ -117,6 +117,9 @@ app.add_middleware(
     allow_origins=[o for o in os.getenv("SUPPORT_AGENT_CORS", "http://localhost:3000")
                    .split(",") if o],
     allow_origin_regex=os.getenv("SUPPORT_AGENT_CORS_REGEX"),
+    # Devices on the tailnet resolve the Funnel hostname to a private 100.x address, and
+    # Chrome blocks public sites from calling private addresses unless the preflight opts in.
+    allow_private_network=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
