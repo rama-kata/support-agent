@@ -25,7 +25,7 @@ export function GitHubMark({ className }: { className?: string }) {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  processing: "bg-gold-soft text-gold",
+  processing: "bg-gold-soft text-gold-ink",
   shipped: "bg-wine-soft text-wine",
   delivered: "bg-ok-soft text-ok",
   cancelled: "bg-surface-2 text-muted line-through decoration-1",
@@ -35,7 +35,7 @@ export function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize tracking-wide",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize tracking-wide",
         STATUS_STYLES[status] ?? "bg-surface-2 text-muted",
       )}
     >

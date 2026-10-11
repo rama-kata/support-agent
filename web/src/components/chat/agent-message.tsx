@@ -37,7 +37,8 @@ export function AgentMessage({
   turn: AgentTurn;
   onRate: (rating: 1 | -1, comment?: string) => Promise<void>;
 }) {
-  const [stepsOpen, setStepsOpen] = useState(false);
+  // Steps stay visible after the reply: showing the work is the point of the demo.
+  const [stepsOpen, setStepsOpen] = useState(true);
   const [askComment, setAskComment] = useState(false);
   const [comment, setComment] = useState("");
   const [thanks, setThanks] = useState(false);
@@ -75,8 +76,10 @@ export function AgentMessage({
           <div className="mb-2">
             <button
               onClick={() => setStepsOpen((o) => !o)}
-              disabled={turn.pending}
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs text-ink-soft transition hover:border-line-strong disabled:cursor-default"
+              disabled={turn.pending || turn.steps.length === 0}
+              aria-expanded={turn.steps.length > 0 ? showSteps : undefined}
+              aria-label={turn.steps.length > 0 ? (showSteps ? "Hide steps" : "Show steps") : undefined}
+              className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-2xl border border-line bg-surface-2 px-2.5 py-1 text-left text-xs text-ink-soft transition hover:border-line-strong disabled:cursor-default"
             >
               {turn.pending ? (
                 <LoaderCircle className="size-3.5 animate-spin text-wine" />
@@ -84,7 +87,7 @@ export function AgentMessage({
                 <Check className="size-3.5 text-ok" />
               )}
               {turn.intent ? (
-                <span>
+                <span className="whitespace-nowrap">
                   Understood as <span className="font-medium text-ink">{intentLabel(turn.intent)}</span>
                 </span>
               ) : (
@@ -93,7 +96,7 @@ export function AgentMessage({
               {!turn.pending && turn.steps.length > 0 && (
                 <>
                   <span className="text-muted">·</span>
-                  <span>
+                  <span className="whitespace-nowrap">
                     {turn.steps.length} step{turn.steps.length > 1 ? "s" : ""}
                   </span>
                 </>
@@ -101,7 +104,7 @@ export function AgentMessage({
               {!turn.pending && turn.latencyMs !== undefined && (
                 <>
                   <span className="text-muted">·</span>
-                  <span>{(turn.latencyMs / 1000).toFixed(1)}s</span>
+                  <span className="whitespace-nowrap">{(turn.latencyMs / 1000).toFixed(1)}s</span>
                 </>
               )}
               {!turn.pending && turn.steps.length > 0 && (
@@ -123,17 +126,20 @@ export function AgentMessage({
                       key={s.id}
                       initial={{ opacity: 0, x: -4 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-2 py-1.5 text-[13px]"
+                      className="flex items-start gap-2 py-1.5 text-[13px]"
                     >
-                      {s.status === "running" && <LoaderCircle className="size-3.5 shrink-0 animate-spin text-wine" />}
-                      {s.status === "ok" && <Check className="size-3.5 shrink-0 text-ok" />}
-                      {s.status === "error" && <CircleAlert className="size-3.5 shrink-0 text-warn" />}
-                      <span className="text-ink-soft">{s.label}</span>
-                      {s.detail && (
-                        <span className={clsx("truncate text-xs", s.status === "error" ? "text-warn" : "text-muted")}>
-                          {s.detail}
-                        </span>
-                      )}
+                      {s.status === "running" && <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin text-wine" />}
+                      {s.status === "ok" && <Check className="mt-0.5 size-3.5 shrink-0 text-ok" />}
+                      {s.status === "error" && <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" />}
+                      {/* Label and result wrap as units, so a long label never truncates the result. */}
+                      <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                        <span className="text-ink-soft">{s.label}</span>
+                        {s.detail && (
+                          <span className={clsx("whitespace-nowrap text-xs", s.status === "error" ? "text-warn" : "text-muted")}>
+                            {s.detail}
+                          </span>
+                        )}
+                      </span>
                     </motion.li>
                   ))}
                 </motion.ol>
@@ -143,7 +149,7 @@ export function AgentMessage({
         )}
 
         {turn.redacted && turn.redacted.length > 0 && (
-          <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-gold-soft px-2.5 py-1 text-xs text-gold">
+          <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-gold-soft px-2.5 py-1 text-xs text-gold-ink">
             We masked the {turn.redacted.join(", ")} number in your message before the agent saw it.
           </p>
         )}
@@ -177,7 +183,7 @@ export function AgentMessage({
               aria-label="Helpful"
               aria-pressed={turn.rating === 1}
               className={clsx(
-                "grid size-7 place-items-center rounded-md transition",
+                "grid size-8 place-items-center rounded-md transition pointer-coarse:size-11",
                 turn.rating === 1 ? "bg-ok-soft text-ok" : "text-muted hover:bg-surface-2 hover:text-ink",
               )}
             >
@@ -188,7 +194,7 @@ export function AgentMessage({
               aria-label="Not helpful"
               aria-pressed={turn.rating === -1}
               className={clsx(
-                "grid size-7 place-items-center rounded-md transition",
+                "grid size-8 place-items-center rounded-md transition pointer-coarse:size-11",
                 turn.rating === -1 ? "bg-bad-soft text-bad" : "text-muted hover:bg-surface-2 hover:text-ink",
               )}
             >

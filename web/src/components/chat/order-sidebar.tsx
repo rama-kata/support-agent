@@ -46,7 +46,7 @@ export function OrderSidebar({
           </div>
         </div>
         {customer.under_age && (
-          <p className="mt-3 rounded-lg bg-gold-soft px-3 py-2 text-xs leading-relaxed text-gold">
+          <p className="mt-3 rounded-lg bg-gold-soft px-3 py-2 text-xs leading-relaxed text-gold-ink">
             This account is under 21. The agent can help with orders and account questions, but
             won&apos;t share product or stock information.
           </p>
@@ -60,7 +60,7 @@ export function OrderSidebar({
       </div>
 
       <div className="scrollbar-thin flex-1 overflow-y-auto p-3">
-        <p className="px-1 pb-2 pt-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
+        <p className="px-1 pb-2 pt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted">
           Recent orders
         </p>
         <ul className="space-y-1.5">
@@ -154,7 +154,7 @@ function AskChip({ children, onClick }: { children: React.ReactNode; onClick: ()
   return (
     <button
       onClick={onClick}
-      className="rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[11px] text-ink-soft transition hover:border-wine/40 hover:text-wine"
+      className="rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs text-ink-soft transition hover:border-wine/40 hover:text-wine"
     >
       {children}
     </button>

@@ -15,7 +15,7 @@ const STEPS = [
   {
     icon: Brain,
     name: "Route",
-    text: "A fine-tuned 3B model picks one of 28 intents in 50ms, which selects the playbook.",
+    text: "One of 28 intents is picked in about 50ms and selects the playbook. Live here: a kNN router that learns from your feedback instantly.",
   },
   {
     icon: ScanSearch,
@@ -35,8 +35,8 @@ const STEPS = [
 ];
 
 const RESULTS = [
-  { value: "69/69", label: "test scenarios passed", note: "incl. 20 multi-turn & adversarial" },
-  { value: "100%", label: "tool-call accuracy", note: "checked against the database" },
+  { value: "68/69", label: "test scenarios passed", note: "kNN router (live here); 69/69 fine-tuned" },
+  { value: "98.6%", label: "tool-call accuracy", note: "checked against the database" },
   { value: "98.1%", label: "intent accuracy", note: "fine-tuned router, vs 80.7% prompted" },
   { value: "50ms", label: "routing latency", note: "2.5× faster than prompting" },
 ];
@@ -55,7 +55,7 @@ export default function Home() {
           </Link>
           <a
             href={REPO}
-            className="grid size-9 place-items-center rounded-lg text-ink-soft hover:bg-surface-2 hover:text-ink"
+            className="grid size-9 pointer-coarse:size-11 place-items-center rounded-lg text-ink-soft hover:bg-surface-2 hover:text-ink"
             aria-label="Source code on GitHub"
           >
             <GitHubMark className="size-4" />
@@ -109,7 +109,7 @@ export default function Home() {
 
         <section id="how" className="scroll-mt-8 py-20">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-[0.14em] text-gold">How a turn works</p>
+            <p className="text-sm font-medium uppercase tracking-[0.14em] text-gold-ink">How a turn works</p>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
               Code where an action must happen. The model where judgment helps.
             </h2>

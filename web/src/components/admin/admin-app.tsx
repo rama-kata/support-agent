@@ -181,11 +181,11 @@ export function AdminApp() {
       <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <Link href="/" className="grid size-9 place-items-center rounded-lg text-ink-soft hover:bg-surface-2" aria-label="Back">
+            <Link href="/" className="grid size-9 pointer-coarse:size-11 place-items-center rounded-lg text-ink-soft hover:bg-surface-2" aria-label="Back">
               <ArrowLeft className="size-4" />
             </Link>
             <Logo />
-            <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold">Admin</span>
+            <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold-ink">Admin</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={reset} className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-surface-2 hover:text-ink sm:inline-flex">
@@ -295,7 +295,7 @@ export function AdminApp() {
                   <li key={t.id} className="border-b border-line pb-2.5 last:border-0">
                     <p className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs text-muted">#{t.id}</span>
-                      <span className="text-xs text-gold">{t.reason.replaceAll("_", " ")}</span>
+                      <span className="text-xs text-gold-ink">{t.reason.replaceAll("_", " ")}</span>
                     </p>
                     <p className="mt-0.5 line-clamp-2 text-ink-soft">{t.summary}</p>
                   </li>
@@ -339,7 +339,7 @@ function Mini({ label, value }: { label: string; value: number }) {
     <div className="rounded-xl bg-surface-2 py-2">
       <dt className="sr-only">{label}</dt>
       <dd className="font-display text-xl font-semibold text-wine">{value}</dd>
-      <p className="text-[11px] text-muted">{label}</p>
+      <p className="text-xs text-muted">{label}</p>
     </div>
   );
 }
@@ -472,7 +472,7 @@ function FeedbackCard({
           <p className="font-medium text-ink">&ldquo;{row.message}&rdquo;</p>
           <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{row.reply}</p>
           {row.comment && (
-            <p className="mt-2 rounded-lg bg-gold-soft px-3 py-1.5 text-sm text-gold">Customer: {row.comment}</p>
+            <p className="mt-2 rounded-lg bg-gold-soft px-3 py-1.5 text-sm text-gold-ink">Customer: {row.comment}</p>
           )}
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-surface-2 px-2 py-0.5 text-muted">
@@ -486,7 +486,7 @@ function FeedbackCard({
             <span
               className={clsx(
                 "rounded-full px-2 py-0.5 capitalize",
-                row.status === "applied" ? "bg-ok-soft text-ok" : row.status === "labeled" ? "bg-gold-soft text-gold" : "bg-surface-2 text-muted",
+                row.status === "applied" ? "bg-ok-soft text-ok" : row.status === "labeled" ? "bg-gold-soft text-gold-ink" : "bg-surface-2 text-muted",
               )}
             >
               {row.status}

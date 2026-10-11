@@ -8,7 +8,7 @@
   --surface-2: #f9f3ea;
   --ink: #2b1a1f;
   --ink-soft: #5c4a4f;
-  --muted: #8a7a7d;
+  --muted: #726567; /* 4.5:1 on every light surface (was #8a7a7d, 3.6:1) */
   --line: #e6dace;
   --line-strong: #d6c6b6;
   --wine: #6e1f33;
@@ -17,6 +17,7 @@
   --wine-ink: #fff7f3;
   --gold: #a9834d;
   --gold-soft: #f3e8d4;
+  --gold-ink: #80633a; /* gold for text: 4.5:1 on light surfaces; --gold stays decorative */
   --ok: #2f6f4f;
   --ok-soft: #e3f0e8;
   --warn: #9a5b12;
@@ -45,6 +46,7 @@
     --wine-ink: #1c0a10;
     --gold: #d6b57e;
     --gold-soft: #33281a;
+    --gold-ink: #d6b57e;
     --ok: #7cc49c;
     --ok-soft: #173126;
     --warn: #e2ab62;
@@ -73,6 +75,7 @@
   --wine-ink: #1c0a10;
   --gold: #d6b57e;
   --gold-soft: #33281a;
+  --gold-ink: #d6b57e;
   --ok: #7cc49c;
   --ok-soft: #173126;
   --warn: #e2ab62;
@@ -100,6 +103,7 @@
   --color-wine-ink: var(--wine-ink);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-gold-ink: var(--gold-ink);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);

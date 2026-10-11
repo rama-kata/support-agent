@@ -308,15 +308,35 @@ def thread(thread_id: str, customer_id: int = Depends(current_customer)):
         raise HTTPException(404, "Conversation not found.")
     messages = graph.get_state({"configurable": {"thread_id": thread_id}}).values.get(
         "messages", [])
+    with app_db() as conn:
+        meta = {r["turn_id"]: r for r in conn.execute(
+            "SELECT turn_id, intent, latency_ms FROM turns WHERE thread_id = ?", (thread_id,))}
     out = []
     for i, m in enumerate(messages):
         if is_customer(m):
             nxt = next((j for j in range(i + 1, len(messages)) if is_customer(messages[j])),
                        len(messages))
             out.append({"role": "customer", "text": m.content, "turn_id": m.id})
-            out.append({"role": "agent", "text": turn_reply(messages[: nxt]),
-                        "turn_id": m.id})
+            row = meta.get(m.id)
+            out.append({"role": "agent", "text": turn_reply(messages[: nxt]), "turn_id": m.id,
+                        "steps": _turn_steps(messages[i + 1: nxt]),
+                        "intent": row["intent"] if row else None,
+                        "latency_ms": row["latency_ms"] if row else None})
     return {"thread_id": thread_id, "messages": out}
+
+
+def _turn_steps(messages: list) -> list[dict]:
+    """Tool steps of a past turn, labelled exactly as they were streamed live."""
+    results = {m.tool_call_id: _tool_summary(m) for m in messages if isinstance(m, ToolMessage)}
+    steps = []
+    for m in messages:
+        for call in getattr(m, "tool_calls", None) or []:
+            summary = results.get(call["id"], {"ok": False})
+            steps.append({"id": call["id"], "name": call["name"],
+                          "label": _tool_label(call["name"], call["args"]),
+                          "status": "ok" if summary.get("ok") else "error",
+                          "detail": summary.get("detail")})
+    return steps
 
 
 # ---------- feedback ----------

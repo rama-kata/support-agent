@@ -42,6 +42,8 @@ export type Reply = {
   blocked: boolean;
 };
 
+const REQUEST_TIMEOUT_MS = 8000;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -56,6 +58,9 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
+      // The API runs on a home machine behind a tunnel: if it's asleep, requests hang
+      // rather than fail. Time out so visitors see the offline state, not endless skeletons.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       ...rest,
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +87,17 @@ export const api = {
     }),
   me: (token: string) => request<{ customer: Persona; orders: Order[] }>("/api/me", { token }),
   thread: (token: string, id: string) =>
-    request<{ thread_id: string; messages: { role: "customer" | "agent"; text: string; turn_id: string }[] }>(
+    request<{
+      thread_id: string;
+      messages: {
+        role: "customer" | "agent";
+        text: string;
+        turn_id: string;
+        steps?: ToolStep[];
+        intent?: string | null;
+        latency_ms?: number | null;
+      }[];
+    }>(
       `/api/threads/${id}`,
       { token },
     ),

@@ -88,7 +88,16 @@ export function ChatApp() {
           history.messages.map((m) =>
             m.role === "customer"
               ? { role: "customer", key: nextKey(), text: m.text }
-              : { role: "agent", key: nextKey(), turnId: m.turn_id, text: m.text, steps: [], pending: false },
+              : {
+                  role: "agent",
+                  key: nextKey(),
+                  turnId: m.turn_id,
+                  text: m.text,
+                  steps: m.steps ?? [],
+                  intent: m.intent,
+                  latencyMs: m.latency_ms ?? undefined,
+                  pending: false,
+                },
           ),
         );
       })
@@ -219,7 +228,7 @@ export function ChatApp() {
             >
               <button
                 onClick={() => setDrawer(false)}
-                className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-muted hover:bg-surface-2"
+                className="absolute right-2 top-2 grid size-11 place-items-center rounded-lg text-muted hover:bg-surface-2"
                 aria-label="Close"
               >
                 <X className="size-4" />
@@ -235,7 +244,7 @@ export function ChatApp() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDrawer(true)}
-              className="grid size-9 place-items-center rounded-lg text-ink-soft hover:bg-surface-2 lg:hidden"
+              className="grid size-11 place-items-center rounded-lg text-ink-soft hover:bg-surface-2 lg:hidden"
               aria-label="Show orders"
             >
               <Menu className="size-4" />
@@ -256,7 +265,7 @@ export function ChatApp() {
           <div className="mx-auto max-w-3xl px-4 py-8">
             {turns.length === 0 && customer && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="pt-6 sm:pt-12">
-                <p className="inline-flex items-center gap-1.5 text-sm text-gold">
+                <p className="inline-flex items-center gap-1.5 text-sm text-gold-ink">
                   <Sparkles className="size-4" /> Signed in as {customer.first_name}
                 </p>
                 <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
@@ -320,8 +329,8 @@ export function ChatApp() {
               }}
               rows={1}
               maxLength={1000}
-              placeholder={busy ? "Working on it…" : "Ask about an order, a refund or a product"}
-              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-[15px] text-ink shadow-card outline-none transition placeholder:text-muted focus:border-wine"
+              placeholder={busy ? "Working on it…" : "Ask about an order or a product"}
+              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink shadow-card sm:text-[15px] outline-none transition placeholder:text-muted focus:border-wine"
             />
             <button
               type="submit"
@@ -332,7 +341,7 @@ export function ChatApp() {
               <ArrowUp className="size-5" />
             </button>
           </form>
-          <p className="pb-3 text-center text-[11px] text-muted">
+          <p className="pb-3 text-center text-xs text-muted">
             Demo store. Orders are synthetic and reset regularly.
           </p>
         </div>
