@@ -82,7 +82,7 @@ export function AgentMessage({
               className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-2xl border border-line bg-surface-2 px-2.5 py-1 text-left text-xs text-ink-soft transition hover:border-line-strong disabled:cursor-default"
             >
               {turn.pending ? (
-                <LoaderCircle className="size-3.5 animate-spin text-wine" />
+                <LoaderCircle className="size-3.5 animate-spin text-accent" />
               ) : (
                 <Check className="size-3.5 text-ok" />
               )}
@@ -128,7 +128,7 @@ export function AgentMessage({
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-start gap-2 py-1.5 text-[13px]"
                     >
-                      {s.status === "running" && <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin text-wine" />}
+                      {s.status === "running" && <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin text-accent" />}
                       {s.status === "ok" && <Check className="mt-0.5 size-3.5 shrink-0 text-ok" />}
                       {s.status === "error" && <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" />}
                       {/* Label and result wrap as units, so a long label never truncates the result. */}
@@ -233,7 +233,7 @@ export function AgentMessage({
                   onChange={(e) => setComment(e.target.value)}
                   rows={2}
                   maxLength={1000}
-                  className="mt-1.5 w-full resize-none rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-wine"
+                  className="mt-1.5 w-full resize-none rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
                   placeholder="e.g. It should have given me the tracking number"
                 />
                 <div className="mt-2 flex justify-end gap-2">

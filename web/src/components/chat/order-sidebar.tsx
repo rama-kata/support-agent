@@ -32,7 +32,7 @@ export function OrderSidebar({
     <div className="flex h-full flex-col">
       <div className="border-b border-line p-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-full bg-wine-soft font-display text-lg font-semibold text-wine">
+          <span className="grid size-10 place-items-center rounded-full bg-wine-soft font-display text-lg font-semibold text-accent">
             {customer.first_name[0]}
           </span>
           <div className="min-w-0">
@@ -70,7 +70,7 @@ export function OrderSidebar({
                 layout
                 className={clsx(
                   "rounded-xl border bg-surface transition",
-                  changed.has(o.id) ? "border-wine/40 ring-2 ring-wine/15" : "border-line",
+                  changed.has(o.id) ? "border-accent/40 ring-2 ring-accent/15" : "border-line",
                 )}
               >
                 <button
@@ -154,7 +154,7 @@ function AskChip({ children, onClick }: { children: React.ReactNode; onClick: ()
   return (
     <button
       onClick={onClick}
-      className="rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs text-ink-soft transition hover:border-wine/40 hover:text-wine"
+      className="rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs text-ink-soft transition hover:border-accent/40 hover:text-accent"
     >
       {children}
     </button>

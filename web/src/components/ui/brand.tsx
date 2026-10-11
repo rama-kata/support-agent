@@ -26,7 +26,7 @@ export function GitHubMark({ className }: { className?: string }) {
 
 const STATUS_STYLES: Record<string, string> = {
   processing: "bg-gold-soft text-gold-ink",
-  shipped: "bg-wine-soft text-wine",
+  shipped: "bg-wine-soft text-accent",
   delivered: "bg-ok-soft text-ok",
   cancelled: "bg-surface-2 text-muted line-through decoration-1",
 };

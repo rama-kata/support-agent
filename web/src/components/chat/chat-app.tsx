@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, streamChat, type Order, type Persona } from "@/lib/api";
 import { readStore, THREAD_KEY, TOKEN_KEY, writeStore } from "@/lib/session";
 import { Logo } from "@/components/ui/brand";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AgentMessage, type AgentTurn } from "./agent-message";
 import { OrderSidebar } from "./order-sidebar";
 
@@ -213,7 +212,7 @@ export function ChatApp() {
         {drawer && (
           <>
             <motion.div
-              className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+              className="fixed inset-0 z-30 bg-bg-deep/80 lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -257,7 +256,6 @@ export function ChatApp() {
             <span className="hidden items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-xs text-ok sm:inline-flex">
               <span className="size-1.5 rounded-full bg-ok" /> Agent online
             </span>
-            <ThemeToggle />
           </div>
         </header>
 
@@ -305,7 +303,7 @@ export function ChatApp() {
           </div>
         </div>
 
-        <div className="border-t border-line bg-bg/80 backdrop-blur">
+        <div className="border-t border-line bg-bg">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -330,7 +328,7 @@ export function ChatApp() {
               rows={1}
               maxLength={1000}
               placeholder={busy ? "Working on it…" : "Ask about an order or a product"}
-              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink shadow-card sm:text-[15px] outline-none transition placeholder:text-muted focus:border-wine"
+              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink shadow-card sm:text-[15px] outline-none transition placeholder:text-muted focus:border-accent"
             />
             <button
               type="submit"

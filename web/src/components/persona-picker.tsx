@@ -70,7 +70,7 @@ export function PersonaPicker() {
           className="group relative flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-float disabled:opacity-60"
         >
           <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-full bg-wine-soft font-display text-lg font-semibold text-wine">
+            <span className="grid size-10 place-items-center rounded-full bg-wine-soft font-display text-lg font-semibold text-accent">
               {p.first_name[0]}
             </span>
             <div className="min-w-0 flex-1">
@@ -79,13 +79,13 @@ export function PersonaPicker() {
                 {p.under_age && <Lock className="size-3.5 text-gold" aria-label="Under 21" />}
               </p>
               <p className="text-xs text-muted">
-                Age {p.age} · {p.address.split(", ").slice(-2).join(", ")}
+                Age {p.age} · {p.address.split(", ").at(-2)}
               </p>
             </div>
             {signingIn === p.id ? (
-              <LoaderCircle className="size-4 animate-spin text-wine" />
+              <LoaderCircle className="size-4 animate-spin text-accent" />
             ) : (
-              <ArrowRight className="size-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-wine" />
+              <ArrowRight className="size-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" />
             )}
           </div>
           <p className="text-sm leading-snug text-ink-soft">{p.blurb}</p>

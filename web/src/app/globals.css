@@ -1,154 +1,70 @@
 @import "tailwindcss";
-
-/* Cellar & Co. palette: warm cream paper, oxblood wine, aged-brass accent. */
-:root {
-  --bg: #f6f0e7;
-  --bg-deep: #efe6d9;
-  --surface: #fffcf7;
-  --surface-2: #f9f3ea;
-  --ink: #2b1a1f;
-  --ink-soft: #5c4a4f;
-  --muted: #726567; /* 4.5:1 on every light surface (was #8a7a7d, 3.6:1) */
-  --line: #e6dace;
-  --line-strong: #d6c6b6;
-  --wine: #6e1f33;
-  --wine-strong: #561627;
-  --wine-soft: #f4e4e4;
-  --wine-ink: #fff7f3;
-  --gold: #a9834d;
-  --gold-soft: #f3e8d4;
-  --gold-ink: #80633a; /* gold for text: 4.5:1 on light surfaces; --gold stays decorative */
-  --ok: #2f6f4f;
-  --ok-soft: #e3f0e8;
-  --warn: #9a5b12;
-  --warn-soft: #f8ecd9;
-  --bad: #a3303b;
-  --bad-soft: #f8e1e2;
-  --shadow: 0 1px 2px rgb(43 26 31 / 0.05), 0 8px 24px -12px rgb(43 26 31 / 0.18);
-  --shadow-lg: 0 2px 4px rgb(43 26 31 / 0.04), 0 24px 48px -20px rgb(43 26 31 / 0.28);
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #130b0e;
-    --bg-deep: #0e0709;
-    --surface: #1c1216;
-    --surface-2: #23171c;
-    --ink: #f4ebe3;
-    --ink-soft: #cdbdb5;
-    --muted: #9c8a8c;
-    --line: #33242a;
-    --line-strong: #463239;
-    --wine: #d9718a;
-    --wine-strong: #e88aa1;
-    --wine-soft: #3a1a24;
-    --wine-ink: #1c0a10;
-    --gold: #d6b57e;
-    --gold-soft: #33281a;
-    --gold-ink: #d6b57e;
-    --ok: #7cc49c;
-    --ok-soft: #173126;
-    --warn: #e2ab62;
-    --warn-soft: #36270f;
-    --bad: #ee8a92;
-    --bad-soft: #3b1a1e;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-    --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.3), 0 24px 48px -20px rgb(0 0 0 / 0.7);
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme="dark"] {
-  --bg: #130b0e;
-  --bg-deep: #0e0709;
-  --surface: #1c1216;
-  --surface-2: #23171c;
-  --ink: #f4ebe3;
-  --ink-soft: #cdbdb5;
-  --muted: #9c8a8c;
-  --line: #33242a;
-  --line-strong: #463239;
-  --wine: #d9718a;
-  --wine-strong: #e88aa1;
-  --wine-soft: #3a1a24;
-  --wine-ink: #1c0a10;
-  --gold: #d6b57e;
-  --gold-soft: #33281a;
-  --gold-ink: #d6b57e;
-  --ok: #7cc49c;
-  --ok-soft: #173126;
-  --warn: #e2ab62;
-  --warn-soft: #36270f;
-  --bad: #ee8a92;
-  --bad-soft: #3b1a1e;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.3), 0 24px 48px -20px rgb(0 0 0 / 0.7);
-  color-scheme: dark;
-}
+@import "./tokens.css";
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-bg-deep: var(--bg-deep);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-wine: var(--wine);
-  --color-wine-strong: var(--wine-strong);
-  --color-wine-soft: var(--wine-soft);
-  --color-wine-ink: var(--wine-ink);
-  --color-gold: var(--gold);
-  --color-gold-soft: var(--gold-soft);
-  --color-gold-ink: var(--gold-ink);
-  --color-ok: var(--ok);
-  --color-ok-soft: var(--ok-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-bad: var(--bad);
-  --color-bad-soft: var(--bad-soft);
+  /* Utility names map onto tokens.css; components never see raw colors. */
+  --color-bg: var(--color-bg-base);
+  --color-bg-deep: var(--color-bg-sunken);
+  --color-surface: var(--color-bg-surface);
+  --color-surface-2: var(--color-bg-raised);
+  --color-ink: var(--color-text-primary);
+  --color-ink-soft: var(--color-text-soft);
+  --color-muted: var(--color-text-secondary);
+  --color-line: var(--color-border);
+  --color-line-strong: var(--color-border-strong);
+  /* Burgundy: filled surfaces only (buttons, customer bubbles) with linen text on top. */
+  --color-wine: var(--color-brand-primary);
+  --color-wine-strong: var(--color-action-hover);
+  --color-wine-soft: var(--color-brand-primary-soft);
+  --color-wine-ink: var(--color-text-primary);
+  /* Gold: the accent for text, links, icons, active borders and focus. */
+  --color-accent: var(--color-brand-secondary);
+  --color-gold: var(--color-brand-secondary);
+  --color-gold-ink: var(--color-brand-secondary);
+  --color-gold-soft: var(--color-brand-secondary-soft);
+  --color-ok: var(--color-status-ok);
+  --color-ok-soft: var(--color-status-ok-soft);
+  --color-warn: var(--color-status-warn);
+  --color-warn-soft: var(--color-status-warn-soft);
+  --color-bad: var(--color-status-bad);
+  --color-bad-soft: var(--color-status-bad-soft);
   --font-sans: var(--font-inter);
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-playfair);
   --font-mono: var(--font-mono-face);
-  --shadow-card: var(--shadow);
-  --shadow-float: var(--shadow-lg);
+  --shadow-card: var(--elevation-card);
+  --shadow-float: var(--elevation-float);
 }
 
 body {
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Subtle paper grain so large cream areas don't feel flat. */
+/* Flat page background: no glows or gradients (CLAUDE.md). */
 .paper {
-  background-image:
-    radial-gradient(circle at 20% 0%, color-mix(in oklab, var(--gold) 9%, transparent), transparent 45%),
-    radial-gradient(circle at 100% 30%, color-mix(in oklab, var(--wine) 7%, transparent), transparent 40%);
+  background: var(--color-bg-base);
 }
 
 .font-display {
-  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
-  font-optical-sizing: auto;
+  font-family: var(--font-playfair), ui-serif, Georgia, serif;
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--wine) 22%, transparent);
+  background: var(--color-brand-primary);
+  color: var(--color-text-primary);
 }
 
 :focus-visible {
-  outline: 2px solid var(--wine);
+  outline: 2px solid var(--color-brand-secondary);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-color: var(--color-border-strong) transparent;
 }
 
 @keyframes pulse-dot {

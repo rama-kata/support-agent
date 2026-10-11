@@ -22,7 +22,6 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { ADMIN_KEY, readStore, writeStore } from "@/lib/session";
 import { Logo } from "@/components/ui/brand";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 type FeedbackRow = {
   id: number;
@@ -149,7 +148,7 @@ export function AdminApp() {
           <label htmlFor="admin-token" className="mt-5 block text-xs font-medium text-ink-soft">
             Admin token
           </label>
-          <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 focus-within:border-wine">
+          <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 focus-within:border-accent">
             <KeyRound className="size-4 text-muted" />
             <input
               id="admin-token"
@@ -178,7 +177,7 @@ export function AdminApp() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-bg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Link href="/" className="grid size-9 pointer-coarse:size-11 place-items-center rounded-lg text-ink-soft hover:bg-surface-2" aria-label="Back">
@@ -191,7 +190,6 @@ export function AdminApp() {
             <button onClick={reset} className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-surface-2 hover:text-ink sm:inline-flex">
               <RotateCcw className="size-4" /> Reset demo orders
             </button>
-            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -274,7 +272,7 @@ export function AdminApp() {
                   </dl>
                   {Object.entries(intents.learned).map(([name, desc]) => (
                     <p key={name} className="flex items-baseline gap-2">
-                      <span className="rounded bg-wine-soft px-1.5 py-0.5 font-mono text-xs text-wine">{name}</span>
+                      <span className="rounded bg-wine-soft px-1.5 py-0.5 font-mono text-xs text-accent">{name}</span>
                       <span className="text-ink-soft">{desc}</span>
                     </p>
                   ))}
@@ -338,7 +336,7 @@ function Mini({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl bg-surface-2 py-2">
       <dt className="sr-only">{label}</dt>
-      <dd className="font-display text-xl font-semibold text-wine">{value}</dd>
+      <dd className="font-display text-xl font-semibold text-accent">{value}</dd>
       <p className="text-xs text-muted">{label}</p>
     </div>
   );
@@ -368,18 +366,18 @@ function EvalsPanel({ evals }: { evals: Record<string, EvalSummary> }) {
       <div className="space-y-4 text-sm">
         {fly && (
           <div className="rounded-xl bg-wine-soft/60 p-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-wine">Feedback loop, new topics</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-accent">Feedback loop, new topics</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
                 <p className="text-xs text-muted">Answered correctly</p>
                 <p className="font-display text-lg font-semibold">
-                  {pct(fly.v1.answered)} <span className="text-muted">→</span> <span className="text-wine">{pct(fly.v2.answered)}</span>
+                  {pct(fly.v1.answered)} <span className="text-muted">→</span> <span className="text-accent">{pct(fly.v2.answered)}</span>
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted">Routed correctly</p>
                 <p className="font-display text-lg font-semibold">
-                  {pct(fly.v1.routed)} <span className="text-muted">→</span> <span className="text-wine">{pct(fly.v2.routed)}</span>
+                  {pct(fly.v1.routed)} <span className="text-muted">→</span> <span className="text-accent">{pct(fly.v2.routed)}</span>
                 </p>
               </div>
             </div>
@@ -479,7 +477,7 @@ function FeedbackCard({
               routed as <span className="font-mono text-ink-soft">{row.intent ?? "–"}</span>
             </span>
             {row.label && (
-              <span className="rounded-full bg-wine-soft px-2 py-0.5 text-wine">
+              <span className="rounded-full bg-wine-soft px-2 py-0.5 text-accent">
                 labeled <span className="font-mono">{row.label}</span>
               </span>
             )}
@@ -492,7 +490,7 @@ function FeedbackCard({
               {row.status}
             </span>
             {row.status !== "applied" && (
-              <button onClick={() => setOpen((o) => !o)} className="ml-auto font-medium text-wine hover:underline">
+              <button onClick={() => setOpen((o) => !o)} className="ml-auto font-medium text-accent hover:underline">
                 {open ? "Close" : row.label ? "Edit label" : "Label"}
               </button>
             )}
@@ -515,7 +513,7 @@ function FeedbackCard({
                     setIsNew(e.target.value === "__new");
                     if (e.target.value !== "__new") setIntent(e.target.value);
                   }}
-                  className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-wine"
+                  className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-accent"
                 >
                   {intents.map((i) => (
                     <option key={i} value={i}>
@@ -531,13 +529,13 @@ function FeedbackCard({
                     value={newName}
                     onChange={(e) => setNewName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))}
                     placeholder="intent_name"
-                    className="rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono text-xs outline-none focus:border-wine"
+                    className="rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono text-xs outline-none focus:border-accent"
                   />
                   <input
                     value={desc}
                     onChange={(e) => setDesc(e.target.value)}
                     placeholder="Short description"
-                    className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-wine"
+                    className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-accent"
                   />
                 </div>
               )}
@@ -550,14 +548,14 @@ function FeedbackCard({
                     value={policyTitle}
                     onChange={(e) => setPolicyTitle(e.target.value)}
                     placeholder="Policy title, e.g. Gift cards"
-                    className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-wine"
+                    className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-accent"
                   />
                   <textarea
                     value={policyText}
                     onChange={(e) => setPolicyText(e.target.value)}
                     rows={3}
                     placeholder="What customers should be told"
-                    className="w-full resize-none rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-wine"
+                    className="w-full resize-none rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs outline-none focus:border-accent"
                   />
                 </div>
               </details>

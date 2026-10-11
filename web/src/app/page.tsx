@@ -2,7 +2,6 @@ import { ArrowUpRight, Brain, ScanSearch, ShieldCheck, ShieldHalf, Wrench } from
 import Link from "next/link";
 import { PersonaPicker } from "@/components/persona-picker";
 import { GitHubMark, Logo } from "@/components/ui/brand";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const REPO = "https://github.com/rama-kata/support-agent";
 
@@ -35,8 +34,8 @@ const STEPS = [
 ];
 
 const RESULTS = [
-  { value: "68/69", label: "test scenarios passed", note: "kNN router (live here); 69/69 fine-tuned" },
-  { value: "98.6%", label: "tool-call accuracy", note: "checked against the database" },
+  { value: "75/77", label: "test scenarios passed", note: "multi-turn, adversarial and wine-knowledge" },
+  { value: "98.7%", label: "tool-call accuracy", note: "checked against the database" },
   { value: "98.1%", label: "intent accuracy", note: "fine-tuned router, vs 80.7% prompted" },
   { value: "50ms", label: "routing latency", note: "2.5× faster than prompting" },
 ];
@@ -60,19 +59,18 @@ export default function Home() {
           >
             <GitHubMark className="size-4" />
           </a>
-          <ThemeToggle />
         </nav>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         <section className="grid gap-10 pb-16 pt-8 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-14">
           <div className="flex flex-col justify-center">
-            <p className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs text-ink-soft backdrop-blur">
+            <p className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-soft">
               <span className="size-1.5 rounded-full bg-ok" />
               Portfolio demo · runs on local models
             </p>
             <h1 className="font-display text-[2.6rem] leading-[1.05] font-semibold tracking-tight text-ink sm:text-6xl">
-              A support agent that does the work, <em className="text-wine">and proves it.</em>
+              A support agent that does the work, <em className="text-accent">and proves it.</em>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
               Ask about an order, cancel one, request a refund or check whether something&apos;s in
@@ -88,7 +86,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-line bg-surface-2/70 p-4 shadow-float backdrop-blur sm:p-6">
+          <div className="rounded-3xl border border-line bg-surface p-4 sm:p-6">
             <h2 className="font-display text-xl font-semibold text-ink">Sign in as a customer</h2>
             <p className="mb-5 mt-1 text-sm text-ink-soft">
               Each has real order history. Changes reset regularly, so go ahead and cancel things.
@@ -100,7 +98,7 @@ export default function Home() {
         <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line shadow-card lg:grid-cols-4">
           {RESULTS.map((r) => (
             <div key={r.label} className="bg-surface p-5">
-              <p className="font-display text-3xl font-semibold tracking-tight text-wine">{r.value}</p>
+              <p className="font-display text-3xl font-semibold tracking-tight text-accent">{r.value}</p>
               <p className="mt-1 text-sm font-medium text-ink">{r.label}</p>
               <p className="mt-0.5 text-xs text-muted">{r.note}</p>
             </div>
@@ -118,7 +116,7 @@ export default function Home() {
             {STEPS.map((s, i) => (
               <li key={s.name} className="relative rounded-2xl border border-line bg-surface p-5 shadow-card">
                 <div className="flex items-center justify-between">
-                  <span className="grid size-9 place-items-center rounded-lg bg-wine-soft text-wine">
+                  <span className="grid size-9 place-items-center rounded-lg bg-wine-soft text-accent">
                     <s.icon className="size-4" />
                   </span>
                   <span className="font-mono text-xs text-muted">0{i + 1}</span>
