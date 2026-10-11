@@ -38,6 +38,11 @@ DEMO_STORE = DEMO / "store.db"
 APP_DB = DEMO / "app.db"
 TOKEN_TTL = timedelta(hours=12)
 MESSAGES_PER_MINUTE = 12
+# The demo runs on a home GPU behind a public URL: cap total load, not just per persona
+# (visitors share personas, so one script could otherwise multiply the per-persona limit).
+GLOBAL_MESSAGES_PER_MINUTE = 40
+MAX_WAITING = 3          # turns queued behind the one running; beyond that, answer 503
+QUEUE_TIMEOUT_S = 90     # a queued turn gives up rather than holding a worker forever
 MAX_MESSAGE_CHARS = 1000
 
 PERSONAS = {
@@ -102,6 +107,9 @@ graph = build_graph(router=router, checkpointer=SqliteSaver(_checkpoints))
 # One agent turn at a time: the GPUs are the bottleneck, and queueing beats thrashing.
 _gpu = threading.Semaphore(1)
 _recent: dict[int, deque] = defaultdict(deque)
+_recent_all: deque = deque()
+_waiting = 0
+_waiting_lock = threading.Lock()
 
 app = FastAPI(title=f"{STORE_NAME} support agent")
 app.add_middleware(
@@ -135,13 +143,21 @@ def require_admin(authorization: str = Header("")):
         raise HTTPException(403, "Admin token required.")
 
 
-def rate_limit(customer_id: int):
-    now, window = time.monotonic(), _recent[customer_id]
+def _within(window: deque, limit: int) -> bool:
+    now = time.monotonic()
     while window and now - window[0] > 60:
         window.popleft()
-    if len(window) >= MESSAGES_PER_MINUTE:
-        raise HTTPException(429, "You're sending messages quickly. Try again in a minute.")
+    if len(window) >= limit:
+        return False
     window.append(now)
+    return True
+
+
+def rate_limit(customer_id: int):
+    if _waiting >= MAX_WAITING or not _within(_recent_all, GLOBAL_MESSAGES_PER_MINUTE):
+        raise HTTPException(503, "The demo is busy right now. Please try again in a minute.")
+    if not _within(_recent[customer_id], MESSAGES_PER_MINUTE):
+        raise HTTPException(429, "You're sending messages quickly. Try again in a minute.")
 
 
 def persona(customer_id: int) -> dict:
@@ -217,9 +233,21 @@ def _tool_summary(msg: ToolMessage) -> dict:
 def _stream_turn(customer_id: int, text: str, thread_id: str):
     config = {"configurable": {"customer_id": customer_id, "thread_id": thread_id},
               "recursion_limit": 20}
+    global _waiting
     start = time.perf_counter()
     yield _event("start", thread_id=thread_id)
-    with _gpu:
+    with _waiting_lock:
+        _waiting += 1
+    try:
+        got_gpu = _gpu.acquire(timeout=QUEUE_TIMEOUT_S)
+    finally:
+        with _waiting_lock:
+            _waiting -= 1
+    if not got_gpu:
+        yield _event("error", message="The demo is busy right now. Please try again shortly.",
+                     detail="queue_timeout")
+        return
+    try:
         state = None
         for update in graph.stream({"messages": [HumanMessage(content=text)]}, config,
                                    stream_mode="updates"):
@@ -237,6 +265,8 @@ def _stream_turn(customer_id: int, text: str, thread_id: str):
                     elif isinstance(msg, ToolMessage):
                         yield _event("tool_end", id=msg.tool_call_id, **_tool_summary(msg))
         state = graph.get_state(config).values
+    finally:
+        _gpu.release()
 
     messages = state["messages"]
     turn_id = next(m.id for m in reversed(messages) if is_customer(m))

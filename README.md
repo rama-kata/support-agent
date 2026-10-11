@@ -14,9 +14,9 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 |---|---|---|---|---|
 | Prompting (qwen2.5:3b) | 49/49 | 20/20 | 100% | 4.1s / 7.2s |
 | Fine-tuned (LoRA, Ollama) | 49/49 | 20/20 | 100% | 5.0s / 12.0s |
-| kNN (default), after the no-invention prompt rule | 49/49 | 19/20 | 98.6% | 4.0s / 6.5s |
+| kNN (default), after the no-invention prompt rule and wider `verify` patterns | 49/49 | 19/20 | 98.6% | 4.1s / 7.3s |
 
-The kNN run's one miss was a promise without an action ("I can cancel your order now. Let me do that for you.") in a phrasing the `verify` node didn't yet recognise; it now does (`tests/test_verify.py`), and a re-run is pending.
+The kNN run's one miss is `hard_conditional-2`: "is Kirin Ichiban 4/6 back in stock? if not, just cancel ORD-10109". The router picks one intent per message (`product_inquiry`), so the agent checks stock, then says it will cancel without calling the tool. `verify` catches the unbacked claim and retries with only `cancel_order` offered; the model still doesn't call it, so the customer gets an honest handoff ("nothing has been changed on your order yet") and a ticket. The safety net held: no false claim reached the customer, but the order wasn't cancelled, so the scenario fails. The fix is multi-intent routing (the kNN vote already produces a runner-up intent), not yet built.
 
 The hard set covers typos, multi-turn context ("ok, cancel it"), no order number, two requests in one message, conditional requests ("if it's out of stock, cancel my order"), fake-policy social engineering, refund over-claims, and the $100/$101 approval boundary.
 
