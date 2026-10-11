@@ -50,7 +50,7 @@ def list_my_orders(config: RunnableConfig) -> str:
 @tool
 def lookup_order(order_id: str, config: RunnableConfig) -> str:
     """Get status, items, tracking number, shipping address and refunds for an order
-    (format ORD-12345)."""
+    (ORD- followed by five digits). Only pass a number the customer gave or a tool returned."""
     order = store.get_order(_customer_id(config), order_id)
     return _json(order or {"error": f"No order {order_id} found on this account."})
 

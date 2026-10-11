@@ -9,6 +9,7 @@ reply. Results go to evals/results/agent-<timestamp>.json.
 import argparse
 import json
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -34,6 +35,9 @@ def check(scenario, called, reply, db_path) -> list[str]:
             failures.append(f"reply missing '{fact}'")
     if (any_of := scenario.get("must_mention_any")) and not any(f.lower() in low for f in any_of):
         failures.append(f"reply missing any of {any_of}")
+    pattern = scenario.get("must_not_match")
+    if pattern and (m := re.search(pattern, reply, re.IGNORECASE)):
+        failures.append(f"reply invented '{m.group(0)}'")
     for fact in scenario.get("must_not_mention", []):
         if fact.lower() in low:
             failures.append(f"reply leaked '{fact}'")
@@ -124,11 +128,14 @@ def main():
                for r in results]
     latencies = sorted(r["latency_s"] for r in results)
     hard = [r["passed"] for r in results if r["category"].startswith("hard")]
-    core = [r["passed"] for r in results if not r["category"].startswith("hard")]
+    voice = [r["passed"] for r in results if r["category"].startswith("voice")]
+    core = [r["passed"] for r in results
+            if not r["category"].startswith(("hard", "voice"))]
     summary = {
         "model": model, "router": router.name, "scenarios": len(results),
         "core_pass_rate": round(sum(core) / len(core), 3) if core else None,
         "hard_pass_rate": round(sum(hard) / len(hard), 3) if hard else None,
+        "voice_pass_rate": round(sum(voice) / len(voice), 3) if voice else None,
         "pass_rate": round(sum(r["passed"] for r in results) / len(results), 3),
         "tool_call_accuracy": round(sum(tool_ok) / len(results), 3),
         "p50_latency_s": latencies[len(latencies) // 2],

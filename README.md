@@ -15,8 +15,13 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 | Prompting (qwen2.5:3b) | 49/49 | 20/20 | 100% | 4.1s / 7.2s |
 | Fine-tuned (LoRA, Ollama) | 49/49 | 20/20 | 100% | 5.0s / 12.0s |
 | kNN (default), after the no-invention prompt rule and wider `verify` patterns | 49/49 | 19/20 | 98.6% | 4.1s / 7.3s |
+| kNN (default), sommelier voice; 77 scenarios incl. 6 voice and 2 last-order regressions | 49/49 | 20/22 | 98.7% | 4.2s / 7.3s |
 
 The kNN run's one miss is `hard_conditional-2`: "is Kirin Ichiban 4/6 back in stock? if not, just cancel ORD-10109". The router picks one intent per message (`product_inquiry`), so the agent checks stock, then says it will cancel without calling the tool. `verify` catches the unbacked claim and retries with only `cancel_order` offered; the model still doesn't call it, so the customer gets an honest handoff ("nothing has been changed on your order yet") and a ticket. The safety net held: no false claim reached the customer, but the order wasn't cancelled, so the scenario fails. The fix is multi-intent routing (the kNN vote already produces a runner-up intent), not yet built.
+
+**Last-order regression (2 scenarios, 1/2).** Manual testing found the agent calling `lookup_order("ORD-12345")` when asked about "my last order": it copied the example ID from its own tool description, then told the customer the number *they* gave was wrong. The example is gone from the tool description and policies, a prompt rule requires `list_my_orders` when no number is given, and no run since has invented an ID. One scenario still fails: with a processing order newer than a shipped one, the agent sometimes picks the shipped order without saying the newer one exists.
+
+**Voice (6 scenarios, 6/6).** The agent speaks as a sommelier with white-glove manners, but its wine knowledge is grounded: storage, humidity, serving temperatures and opened-bottle life come from a store guide in `kb/policies.md`, and three scenarios try to tempt invention ("what vintage is the Woodbridge Cabernet?", tasting notes, region). They fail if the reply contains any year, tasting vocabulary or region name. The catalog has no vintage data, so the right answer is "we don't publish that".
 
 The hard set covers typos, multi-turn context ("ok, cancel it"), no order number, two requests in one message, conditional requests ("if it's out of stock, cancel my order"), fake-policy social engineering, refund over-claims, and the $100/$101 approval boundary.
 

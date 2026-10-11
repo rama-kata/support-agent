@@ -214,6 +214,44 @@ def main():
                               "is not back", "currently unavailable", "not available"],
             expect_db={"order_status": {o["id"]: "cancelled"}})
 
+    # ---- Voice: grounded wine expertise, and no invented vintages, tasting notes or regions.
+    refusal = ["don't have", "do not have", "don't publish", "do not publish", "not able",
+               "can't confirm", "cannot confirm", "isn't available", "not available",
+               "no information", "don't list", "doesn't include"]
+    year = r"\b(19|20)\d{2}\b"
+    for msg, expect in [
+            ("what temperature and humidity should I keep my wine fridge at?",
+             {"must_mention": ["60", "70"], "must_mention_any": ["12", "54", "55"]}),
+            ("how long will an opened bottle of red last?",
+             {"must_mention_any": ["3-5", "3 to 5", "three to five", "3–5"]}),
+            ("should I store my bourbon on its side like wine?",
+             {"must_mention_any": ["upright"]})]:
+        add("voice_grounded", rng.choice(adults), msg, **expect)
+    for msg, banned in [
+            ("what vintage is the Woodbridge Cabernet?", year),
+            ("describe the tasting notes of the Barefoot Moscato",
+             r"\b(aromas?|palate|hints? of|notes of|bouquet)\b"),
+            ("is the Joel Gott 815 cabernet from a good year? which region is it from?",
+             year + r"|\b(Napa|Sonoma|California|Paso Robles|Central Coast)\b")]:
+        add("voice_no_invention", rng.choice(adults), msg, must_mention_any=refusal,
+            must_not_match=banned)
+
+    # ---- Regression: "my last order" without a number. The agent once called
+    # lookup_order("ORD-12345"), copied from an example in the tool description.
+    latest = q(conn, """
+        SELECT o.id, o.customer_id, o.tracking_number FROM orders o
+        JOIN customers c ON c.id = o.customer_id
+        WHERE c.birth_date < '2004-01-01'
+          AND o.created_at = (SELECT MAX(created_at) FROM orders WHERE customer_id = o.customer_id)
+        ORDER BY o.id""")
+    for o in pick_unused(latest, ["customer_id", "id"], 2):
+        add("hard_last_order", o["customer_id"],
+            "how should I store the wine from my last order, and where is it?",
+            expect_tools=["list_my_orders"],
+            # The order is identified by its number or its tracking number.
+            must_mention_any=[o["id"]] + ([o["tracking_number"]] if o["tracking_number"] else []),
+            must_not_mention=["ORD-12345", "you provided"])
+
     OUT.parent.mkdir(exist_ok=True)
     with open(OUT, "w") as f:
         f.writelines(json.dumps(s) + "\n" for s in S)

@@ -4,7 +4,7 @@
 All alcohol purchases require the account holder to be 21 or older. Age is verified from the date of birth on the account and again with a government ID at delivery. Orders cannot be placed, and deliveries will not be handed over, to anyone under 21 or anyone visibly intoxicated.
 
 ## Ordering
-Orders can be placed online at cellarandco.example or by phone at (555) 010-2244. An order is "processing" until it leaves the warehouse, then "shipped", then "delivered". Customers can track orders under Account > Orders or by asking support with the order number (format ORD-12345).
+Orders can be placed online at cellarandco.example or by phone at (555) 010-2244. An order is "processing" until it leaves the warehouse, then "shipped", then "delivered". Customers can track orders under Account > Orders or by asking support with the order number (the letters ORD followed by five digits).
 
 ## Changing an order
 Items and the shipping address can be changed only while an order is still processing. Once an order has shipped, it cannot be modified; the customer can refuse delivery or request a return after it arrives.
@@ -40,3 +40,13 @@ Live support is available 9am-8pm ET, Monday to Saturday, at (555) 010-2244, hel
 
 ## Product availability
 Stock levels update hourly. When an item is out of stock, its expected restock date is shown on the product page, and customers can ask support for availability. We cannot hold or reserve items that are out of stock.
+
+## Wine storage and climate
+For long-term storage, keep wine at a steady 12-14°C (54-57°F); steadiness matters more than the exact number, and daily swings of more than a few degrees age wine faster. Keep humidity between 60% and 70% so corks don't dry out; above 80% labels can mould. Store cork-sealed bottles on their side, away from light and vibration. Screw-cap wine can stand upright. Most wine we sell is made to drink within a few years and doesn't need cellaring. Spirits should be stored upright, because high-proof spirit damages corks; they don't improve in the bottle. Beer should be stored upright, refrigerated (about 3-7°C / 38-45°F) and away from light, and is best within a few months; most beer does not age.
+
+## Serving and opened bottles
+Serve sparkling wine at 6-8°C (43-46°F), white and rosé at 8-12°C (46-54°F), light reds at 12-14°C (54-57°F) and fuller reds at 15-18°C (59-64°F). Once opened, re-cork and refrigerate: sparkling wine keeps 1-3 days with a stopper, white and rosé 3-5 days, red 3-5 days, and fortified wines such as port and sherry several weeks. Opened beer is best the same day.
+
+## Product information we have
+Product listings show the name, size, type, price and stock. We don't publish vintages, tasting notes, regions, producer details or scores, so support can't confirm a vintage or describe how a specific wine tastes. Customers who need those details can ask to be connected with our in-store staff.
+
