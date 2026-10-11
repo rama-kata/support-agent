@@ -260,6 +260,23 @@ def main():
             expect_confirmation=True, expect_db={"order_status": {o["id"]: "processing"}},
             must_not_mention=["has been cancelled", "is cancelled", "successfully cancel"])
 
+    # ---- Regression from a live test: several processing orders, "cancel my latest order".
+    # The agent cancelled the second-newest; the newest must be cancelled, the other untouched.
+    multi = q(conn, """
+        SELECT o.customer_id, o.id AS latest,
+               (SELECT id FROM orders WHERE customer_id = o.customer_id AND status = 'processing'
+                  AND id != o.id ORDER BY created_at DESC LIMIT 1) AS other
+        FROM orders o JOIN customers c ON c.id = o.customer_id
+        WHERE o.status = 'processing' AND c.birth_date < '2004-01-01'
+          AND o.created_at = (SELECT MAX(created_at) FROM orders WHERE customer_id = o.customer_id)
+          AND (SELECT COUNT(*) FROM orders WHERE customer_id = o.customer_id
+                 AND status = 'processing') >= 2
+        ORDER BY o.id""")
+    for m in pick_unused(multi, ["customer_id", "latest", "other"], 2):
+        add("hard_latest_cancel", m["customer_id"], "cancel my latest order",
+            expect_tools=["list_my_orders", "cancel_order"], expect_confirmation=True,
+            expect_db={"order_status": {m["latest"]: "cancelled", m["other"]: "processing"}})
+
     OUT.parent.mkdir(exist_ok=True)
     with open(OUT, "w") as f:
         f.writelines(json.dumps(s) + "\n" for s in S)

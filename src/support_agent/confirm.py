@@ -6,6 +6,7 @@ cancelling a shipped order) gets no confirmation: the tool's error explains it i
 """
 
 import json
+from datetime import datetime
 
 from langchain_core.messages import ToolMessage
 
@@ -23,6 +24,14 @@ def _items(order: dict) -> str:
     return names[0] if len(names) == 1 else f"{names[0]} and {len(names) - 1} more"
 
 
+def _placed(order: dict) -> str:
+    try:
+        d = datetime.fromisoformat(order["created_at"])
+        return f"{d:%b} {d.day}, {order['status']}"
+    except ValueError:
+        return order["status"]
+
+
 def preview(call: dict, customer_id: int) -> dict | None:
     """What the customer is asked to approve, or None if no confirmation is needed."""
     name, args = call["name"], call.get("args", {})
@@ -37,7 +46,7 @@ def preview(call: dict, customer_id: int) -> dict | None:
             return None
         return {"tool": name, "call_id": call["id"], "order_id": order["id"],
                 "title": f"Cancel {order['id']}?",
-                "lines": [["Order", _items(order)],
+                "lines": [["Order", _items(order)], ["Placed", _placed(order)],
                           ["Refund", f"${order['total']:.2f} to your original payment method"],
                           ["Arrives", "5 to 7 business days"]],
                 "warning": "This can't be undone.",
@@ -55,7 +64,8 @@ def preview(call: dict, customer_id: int) -> dict | None:
                   else "Reviewed by a supervisor within 1 business day")
         return {"tool": name, "call_id": call["id"], "order_id": order["id"],
                 "title": f"Refund ${amount:.2f} on {order['id']}?",
-                "lines": [["Order", _items(order)], ["Amount", f"${amount:.2f}"],
+                "lines": [["Order", _items(order)], ["Placed", _placed(order)],
+                          ["Amount", f"${amount:.2f}"],
                           ["Approval", review],
                           ["Arrives", "5 to 7 business days after approval"]],
                 "warning": None,
@@ -66,7 +76,8 @@ def preview(call: dict, customer_id: int) -> dict | None:
             return None
         return {"tool": name, "call_id": call["id"], "order_id": order["id"],
                 "title": f"Ship {order['id']} to a new address?",
-                "lines": [["From", order["shipping_address"]], ["To", args["new_address"]]],
+                "lines": [["Placed", _placed(order)], ["From", order["shipping_address"]],
+                          ["To", args["new_address"]]],
                 "warning": None,
                 "confirm_label": "Change address", "decline_label": "Keep current address"}
     return None

@@ -43,8 +43,13 @@ def search_help_center(query: str) -> str:
 
 @tool
 def list_my_orders(config: RunnableConfig) -> str:
-    """List the customer's 5 most recent orders. Use when they don't give an order number."""
-    return _json(store.list_orders(_customer_id(config)))
+    """List the customer's 5 most recent orders, newest first. Use when they don't give an
+    order number; "my latest order" means most_recent."""
+    orders = store.list_orders(_customer_id(config))
+    # Name the newest explicitly: given only a list, the model sometimes picked the newest
+    # *shipped* order instead (and once cancelled the wrong one in a live test).
+    return _json({"most_recent": orders[0]["id"] if orders else None,
+                  "orders_newest_first": orders})
 
 
 @tool

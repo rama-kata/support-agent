@@ -8,7 +8,7 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 
 ## Results
 
-### Agent (79 scenarios, ground truth checked against the database)
+### Agent (81 scenarios, ground truth checked against the database)
 
 | Router | Core (49) | Hard (20) | Tool-call accuracy | Latency p50 / p95 |
 |---|---|---|---|---|
@@ -16,11 +16,14 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 | Fine-tuned (LoRA, Ollama) | 49/49 | 20/20 | 100% | 5.0s / 12.0s |
 | kNN (default), after the no-invention prompt rule and wider `verify` patterns | 49/49 | 19/20 | 98.6% | 4.1s / 7.3s |
 | kNN (default), sommelier voice; 77 scenarios incl. 6 voice and 2 last-order regressions | 49/49 | 20/22 | 98.7% | 4.2s / 7.3s |
-| **kNN (default), confirmation before irreversible actions; 79 scenarios incl. 2 declines** | **49/49** | **22/24** | **98.7%** | **4.2s / 7.2s** |
+| kNN (default), confirmation before irreversible actions; 79 scenarios incl. 2 declines | 49/49 | 22/24 | 98.7% | 4.2s / 7.2s |
+| **kNN (default), explicit most-recent order; 81 scenarios incl. 2 latest-order cancels** | **49/49** | **24/26** | **98.8%** | **4.1s / 7.1s** |
 
 The kNN run's one miss is `hard_conditional-2`: "is Kirin Ichiban 4/6 back in stock? if not, just cancel ORD-10109". The router picks one intent per message (`product_inquiry`), so the agent checks stock, then says it will cancel without calling the tool. `verify` catches the unbacked claim and retries with only `cancel_order` offered; the model still doesn't call it, so the customer gets an honest handoff ("nothing has been changed on your order yet") and a ticket. The safety net held: no false claim reached the customer, but the order wasn't cancelled, so the scenario fails. The fix is multi-intent routing (the kNN vote already produces a runner-up intent), not yet built.
 
-**Last-order regression (2 scenarios, 1/2).** Manual testing found the agent calling `lookup_order("ORD-12345")` when asked about "my last order": it copied the example ID from its own tool description, then told the customer the number *they* gave was wrong. The example is gone from the tool description and policies, a prompt rule requires `list_my_orders` when no number is given, and no run since has invented an ID. One scenario still fails: with a processing order newer than a shipped one, the agent sometimes picks the shipped order without saying the newer one exists.
+**Latest-order cancel (2 scenarios, 2/2), found in a live test.** On the deployed demo, "cancel my latest order" for a customer with several processing orders cancelled the *second*-newest. `list_my_orders` returned orders newest first but didn't say so, and the model misread the list. It now returns `most_recent` explicitly, and confirmation cards show when the order was placed, so a wrong pick is visible before anything runs. Two scenarios reproduce the live case; the newest must be cancelled and the other left alone.
+
+**Last-order regression (2 scenarios, 1/2).** Manual testing found the agent calling `lookup_order("ORD-12345")` when asked about "my last order": it copied the example ID from its own tool description, then told the customer the number *they* gave was wrong. The example is gone from the tool description and policies, a prompt rule requires `list_my_orders` when no number is given, and no run since has invented an ID. One scenario still fails on some runs: the agent finds the right order and says where it went ("delivered to 487 Oak St"), but doesn't name the order or its tracking number, which the check requires.
 
 **Confirmation (31 scenarios asked, 2 decline scenarios, 2/2).** Cancellations, refunds and address changes now pause for the customer's OK (see `approve` below). In the evals a simulated customer answers each card; every scenario that takes an action must have asked first, and in the two decline scenarios the order must stay unchanged and the reply must not claim a cancellation.
 

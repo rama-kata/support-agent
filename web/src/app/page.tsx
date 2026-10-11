@@ -8,8 +8,8 @@ const REPO = "https://github.com/rama-kata/support-agent";
 
 // Every number here comes from an eval run; keep it in step with the README.
 const RESULTS = [
-  { value: "77/79", label: "test conversations passed", note: "multi-turn, adversarial and wine-knowledge cases" },
-  { value: "98.7%", label: "tool calls correct", note: "the right action on the right order" },
+  { value: "79/81", label: "test conversations passed", note: "multi-turn, adversarial and wine-knowledge cases" },
+  { value: "98.8%", label: "tool calls correct", note: "the right action on the right order" },
   { value: "98.1%", label: "intent accuracy", note: "fine-tuned 3B model, vs 80.7% prompted" },
   { value: "50ms", label: "to understand a message", note: "2.5× faster than prompting the same model" },
 ];
@@ -127,8 +127,8 @@ export default function Home() {
             ))}
           </div>
           <p className="mt-4 max-w-[80ch] text-sm text-muted">
-            The two failures are written up in the README: a message with two requests in it, and picking
-            the right order when a newer one is still processing.
+            The two failures are written up in the README: a message with two requests in it, and a reply
+            that finds the right order but doesn&apos;t name it.
           </p>
         </section>
 
