@@ -16,6 +16,7 @@ import shutil
 import sqlite3
 import threading
 import time
+import urllib.request
 import uuid
 from collections import defaultdict, deque
 from datetime import UTC, datetime, timedelta
@@ -31,7 +32,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from support_agent import confirm, flywheel, store
-from support_agent.config import DATA, MINIMUM_AGE, STORE_DB, STORE_NAME
+from support_agent.config import AGENT_MODEL, DATA, MINIMUM_AGE, OLLAMA_URL, STORE_DB, STORE_NAME
 from support_agent.graph import build_graph, is_customer, turn_reply
 from support_agent.router import INTENTS, default_router
 
@@ -178,9 +179,40 @@ class Login(BaseModel):
     customer_id: int
 
 
+_agent_status: dict = {"at": 0.0, "value": None}
+
+
+def agent_status() -> dict:
+    """Whether the models can actually answer, without loading one: cached for 10 seconds.
+    ready: Ollama is up and the agent model is installed (and, if loaded, fully on the GPU).
+    slow: the agent model is loaded but partly on the CPU, so replies take much longer.
+    offline: Ollama isn't reachable or the agent model is missing."""
+    now = time.monotonic()
+    if _agent_status["value"] and now - _agent_status["at"] < 10:
+        return _agent_status["value"]
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=2) as r:
+            installed = {m["name"] for m in json.load(r)["models"]}
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/ps", timeout=2) as r:
+            loaded = {m["name"]: m for m in json.load(r)["models"]}
+    except (OSError, ValueError, KeyError):
+        value = {"agent": "offline", "detail": "The model server isn't reachable."}
+    else:
+        model = loaded.get(AGENT_MODEL)
+        if AGENT_MODEL not in installed:
+            value = {"agent": "offline", "detail": f"{AGENT_MODEL} isn't installed."}
+        elif model and model.get("size_vram", 0) < model.get("size", 0) * 0.95:
+            value = {"agent": "slow", "detail": "The agent model is partly running on the CPU."}
+        else:
+            value = {"agent": "ready", "detail": None}
+    _agent_status.update(at=now, value=value)
+    return value
+
+
 @app.get("/api/health")
 def health():
-    return {"ok": True, "store": STORE_NAME}
+    """ok means the API is up; agent says whether the models behind it can answer."""
+    return {"ok": True, "store": STORE_NAME, **agent_status()}
 
 
 @app.get("/api/personas")
@@ -358,8 +390,13 @@ def _sse(customer_id: int, thread_id: str, graph_input) -> StreamingResponse:
             yield from _stream(customer_id, thread_id, graph_input)
         except Exception as e:  # report to the client instead of a broken stream
             log.exception("chat stream failed (thread %s)", thread_id)
-            yield _event("error", message="Something went wrong on our side. Please try again.",
-                         detail=type(e).__name__)
+            _agent_status["at"] = 0.0  # re-check now rather than trust a cached "ready"
+            if agent_status()["agent"] == "offline":
+                yield _event("error", message="The agent went offline while answering. "
+                             "It runs on a home GPU; please try again later.", detail="offline")
+            else:
+                yield _event("error", message="Something went wrong on our side. Please try again.",
+                             detail=type(e).__name__)
 
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

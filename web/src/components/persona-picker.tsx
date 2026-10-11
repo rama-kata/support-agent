@@ -11,10 +11,18 @@ export function PersonaPicker() {
   const router = useRouter();
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [offline, setOffline] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [signingIn, setSigningIn] = useState<number | null>(null);
 
   useEffect(() => {
-    api.personas().then(setPersonas).catch(() => setOffline(true));
+    // The API can be up while the models behind it aren't: check both before offering sign-in.
+    Promise.all([api.health(), api.personas()])
+      .then(([health, list]) => {
+        if (health.agent === "offline") return setOffline(true);
+        setSlow(health.agent === "slow");
+        setPersonas(list);
+      })
+      .catch(() => setOffline(true));
   }, []);
 
   async function signIn(id: number) {
@@ -56,6 +64,12 @@ export function PersonaPicker() {
   }
 
   return (
+    <div className="grid gap-3.5">
+      {slow && (
+        <p className="w-fit rounded-xl border border-dashed border-ink px-4 py-2.5 text-[15px] text-ink">
+          Running slowly right now: part of the model is on the CPU, so replies may take a minute.
+        </p>
+      )}
     <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
       {personas.map((p, i) => (
         <motion.button
@@ -94,6 +108,7 @@ export function PersonaPicker() {
           </span>
         </motion.button>
       ))}
+    </div>
     </div>
   );
 }

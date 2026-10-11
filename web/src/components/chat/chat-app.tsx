@@ -10,6 +10,7 @@ import {
   ApiError,
   streamChat,
   streamConfirm,
+  type AgentStatus,
   type Decision,
   type Order,
   type Persona,
@@ -51,6 +52,7 @@ export function ChatApp() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [status, setStatus] = useState<AgentStatus>("ready");
   const [drawer, setDrawer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -83,6 +85,13 @@ export function ChatApp() {
       router.replace("/");
       return;
     }
+    api
+      .health()
+      .then((h) => {
+        setStatus(h.agent);
+        if (h.agent === "offline") setOffline(true);
+      })
+      .catch(() => setOffline(true));
     api
       .me(t)
       .then(async (me) => {
@@ -325,8 +334,12 @@ export function ChatApp() {
             </Link>
           </div>
           <div className="flex items-center gap-1">
-            <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-ink" /> Agent online
+            <span
+              className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs sm:inline-flex ${
+                status === "slow" ? "border-dashed border-ink text-ink" : "border-line text-muted"
+              }`}
+            >
+              <span className="size-1.5 rounded-full bg-ink" /> {status === "slow" ? "Running slowly" : "Agent online"}
             </span>
           </div>
         </header>

@@ -67,6 +67,7 @@ export type ConfirmAction = {
   decline_label: string;
 };
 export type Decision = "confirm" | "decline";
+export type AgentStatus = "ready" | "slow" | "offline";
 
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -106,6 +107,9 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 
 export const api = {
   personas: () => request<Persona[]>("/api/personas"),
+  /** ok: the API is up. agent: whether the models behind it can answer right now. */
+  health: () =>
+    request<{ ok: boolean; agent: AgentStatus; detail: string | null }>("/api/health"),
   login: (customer_id: number) =>
     request<{ token: string; customer: Persona }>("/api/auth/login", {
       method: "POST",
