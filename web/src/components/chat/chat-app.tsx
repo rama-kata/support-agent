@@ -18,6 +18,7 @@ import {
 } from "@/lib/api";
 import { readStore, THREAD_KEY, TOKEN_KEY, writeStore } from "@/lib/session";
 import { Bottles, Logo } from "@/components/ui/brand";
+import { AgentStatusBadge } from "@/components/ui/agent-status";
 import { AgentMessage, type AgentTurn } from "./agent-message";
 import { OrderSidebar } from "./order-sidebar";
 
@@ -262,7 +263,8 @@ export function ChatApp() {
           <span className="mx-auto grid size-11 place-items-center rounded-full bg-warn-soft text-warn">
             <PlugZap className="size-5" />
           </span>
-          <h1 className="mt-4 font-display text-xl font-semibold">The agent is offline</h1>
+          <AgentStatusBadge status="offline" className="mt-4" />
+          <h1 className="mt-3 font-display text-xl font-semibold">The agent is offline</h1>
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             It runs on local models on a home GPU, so it&apos;s only reachable while that machine is on.
           </p>
@@ -334,13 +336,7 @@ export function ChatApp() {
             </Link>
           </div>
           <div className="flex items-center gap-1">
-            <span
-              className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs sm:inline-flex ${
-                status === "slow" ? "border-dashed border-ink text-ink" : "border-line text-muted"
-              }`}
-            >
-              <span className="size-1.5 rounded-full bg-ink" /> {status === "slow" ? "Running slowly" : "Agent online"}
-            </span>
+            <AgentStatusBadge status={status} className="hidden sm:inline-flex" />
           </div>
         </header>
 

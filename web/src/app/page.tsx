@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { HeroDemo } from "@/components/landing/hero-demo";
 import { PersonaPicker } from "@/components/persona-picker";
+import { LiveAgentStatus } from "@/components/ui/agent-status";
 import { GitHubMark, Logo } from "@/components/ui/brand";
 
 const REPO = "https://github.com/rama-kata/support-agent";
@@ -54,6 +55,7 @@ export default function Home() {
           <Link href="/" aria-label="cellar, home">
             <Logo />
           </Link>
+          <LiveAgentStatus className="hidden sm:inline-flex" />
           <div className="ml-auto hidden items-center gap-6 text-[15px] text-muted md:flex">
             <a href="#how" className="hover:text-ink">How it works</a>
             <a href="#results" className="hover:text-ink">Results</a>

@@ -15,5 +15,11 @@
   --c-line: #DCDCD9;               /* decorative card edges */
   --c-edge: #86888A;               /* inputs and interactive edges: 3.6:1 (3.2:1 on soft) */
 
+  /* The one exception to two colors: the agent status dot. The label beside it says the
+     same thing in words, so the state never depends on color alone. */
+  --c-live-on: #16A34A;            /* online: 3.3:1 on white */
+  --c-live-slow: #D97706;          /* running slowly: 3.2:1 */
+  --c-live-off: #DC2626;           /* offline: 4.8:1 */
+
   color-scheme: light;
 }

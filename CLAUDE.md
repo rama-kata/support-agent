@@ -5,6 +5,7 @@ The brand is **cellar** (one word, lowercase in the wordmark). The store was pre
 ## Design (web/)
 
 - **Two colors only: ink `#16181B` and white `#FFFFFF`.** Every other value is a tint of the two, defined in `web/src/app/tokens.css`. No accent hue, no status colors, no gradients, no shadows.
+- **One exception: the agent status dot** (`AgentStatusBadge`): green online, amber running slowly, red offline. Nothing else gets color, and the label beside the dot always says the state in words.
 - **Always white.** No dark mode and no theme toggle: the demo looks the same for every visitor, whatever their system setting. Cards on white are set apart by a 1px border, not a fill.
 - **Colors come from `tokens.css` only.** Never put raw HEX, rgb() or hsl() values in components; use the Tailwind utilities mapped in `globals.css`. Exception: the `themeColor` meta in `layout.tsx`, which browsers read as literals.
 - **State is shown by shape, icon and words, never by hue**: dashed outline for "waiting" or warnings, filled for done or primary, outline for secondary, strikethrough for cancelled.

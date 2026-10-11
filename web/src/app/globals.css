@@ -30,6 +30,9 @@
   --color-warn-soft: var(--c-soft);
   --color-bad: var(--c-fg);
   --color-bad-soft: var(--c-soft);
+  --color-live-on: var(--c-live-on);
+  --color-live-slow: var(--c-live-slow);
+  --color-live-off: var(--c-live-off);
   --font-sans: var(--font-instrument);
   --font-display: var(--font-bricolage);
   --font-mono: var(--font-mono-face);
