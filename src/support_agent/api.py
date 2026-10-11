@@ -48,11 +48,12 @@ MAX_WAITING = 3          # turns queued behind the one running; beyond that, ans
 QUEUE_TIMEOUT_S = 90     # a queued turn gives up rather than holding a worker forever
 MAX_MESSAGE_CHARS = 1000
 
+# What to try as each demo customer (shown on the landing page).
 PERSONAS = {
-    186: "Long-time customer with orders in every state",
-    51: "Regular customer, a few shipments on the way",
-    101: "Several orders still processing: try cancelling one",
-    150: "Under 21: the agent won't share product information",
+    186: "\u201cWhere are all my orders?\u201d She has one in every state.",
+    51: "\u201cWill my order make Saturday?\u201d One is waiting on stock.",
+    101: "\u201cCancel my latest order.\u201d It asks you to confirm first.",
+    150: "\u201cIs the Corona 18-pack in stock?\u201d Under 21, so the age rule kicks in.",
 }
 
 TOOL_LABELS = {

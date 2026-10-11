@@ -1,6 +1,6 @@
 # support-agent
 
-A customer support agent for **Cellar & Co.**, a fictional wine, beer and spirits retailer. It looks up and changes orders, issues refunds within limits, answers stock questions using a demand forecast, and hands off to a human when it should. It runs entirely on local models (Ollama).
+A customer support agent for **cellar**, a fictional wine, beer and spirits retailer. It looks up and changes orders, issues refunds within limits, answers stock questions using a demand forecast, and hands off to a human when it should. It asks before anything it can't undo, and checks every action it claims against the database before the customer sees the reply. It runs entirely on local models (Ollama).
 
 Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (tool serving) and **Qwen** models on two consumer GPUs.
 
@@ -8,7 +8,7 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 
 ## Results
 
-### Agent (69 scenarios, ground truth checked against the database)
+### Agent (79 scenarios, ground truth checked against the database)
 
 | Router | Core (49) | Hard (20) | Tool-call accuracy | Latency p50 / p95 |
 |---|---|---|---|---|
@@ -16,10 +16,13 @@ Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (t
 | Fine-tuned (LoRA, Ollama) | 49/49 | 20/20 | 100% | 5.0s / 12.0s |
 | kNN (default), after the no-invention prompt rule and wider `verify` patterns | 49/49 | 19/20 | 98.6% | 4.1s / 7.3s |
 | kNN (default), sommelier voice; 77 scenarios incl. 6 voice and 2 last-order regressions | 49/49 | 20/22 | 98.7% | 4.2s / 7.3s |
+| **kNN (default), confirmation before irreversible actions; 79 scenarios incl. 2 declines** | **49/49** | **22/24** | **98.7%** | **4.2s / 7.2s** |
 
 The kNN run's one miss is `hard_conditional-2`: "is Kirin Ichiban 4/6 back in stock? if not, just cancel ORD-10109". The router picks one intent per message (`product_inquiry`), so the agent checks stock, then says it will cancel without calling the tool. `verify` catches the unbacked claim and retries with only `cancel_order` offered; the model still doesn't call it, so the customer gets an honest handoff ("nothing has been changed on your order yet") and a ticket. The safety net held: no false claim reached the customer, but the order wasn't cancelled, so the scenario fails. The fix is multi-intent routing (the kNN vote already produces a runner-up intent), not yet built.
 
 **Last-order regression (2 scenarios, 1/2).** Manual testing found the agent calling `lookup_order("ORD-12345")` when asked about "my last order": it copied the example ID from its own tool description, then told the customer the number *they* gave was wrong. The example is gone from the tool description and policies, a prompt rule requires `list_my_orders` when no number is given, and no run since has invented an ID. One scenario still fails: with a processing order newer than a shipped one, the agent sometimes picks the shipped order without saying the newer one exists.
+
+**Confirmation (31 scenarios asked, 2 decline scenarios, 2/2).** Cancellations, refunds and address changes now pause for the customer's OK (see `approve` below). In the evals a simulated customer answers each card; every scenario that takes an action must have asked first, and in the two decline scenarios the order must stay unchanged and the reply must not claim a cancellation.
 
 **Voice (6 scenarios, 6/6).** The agent speaks as a sommelier with white-glove manners, but its wine knowledge is grounded: storage, humidity, serving temperatures and opened-bottle life come from a store guide in `kb/policies.md`, and three scenarios try to tempt invention ("what vintage is the Woodbridge Cabernet?", tasting notes, region). They fail if the reply contains any year, tasting vocabulary or region name. The catalog has no vintage data, so the right answer is "we don't publish that".
 
@@ -70,7 +73,9 @@ graph TD
     route --> context
     context -->|payment issue / complaint / wants a human| escalate --> tools
     context --> agent
-    agent -->|tool calls| tools --> agent
+    agent -->|tool calls| approve
+    approve -->|cancel, refund, address: customer confirms| tools --> agent
+    approve -->|customer declines| agent
     agent --> verify
     verify -->|reply claims an action no tool did| agent
     verify --> END
@@ -83,6 +88,7 @@ graph TD
 | `context` | Builds the system prompt: the intent's **playbook** (required action), the 2 most relevant policy sections, and one past resolution for tone. |
 | `escalate` | For intents that must reach a human, the graph files the ticket **in code**; the model only writes the reply. |
 | `agent` / `tools` | qwen3:14b with 9 tools, looping until it answers. |
+| `approve` | Before `cancel_order`, `request_refund` or `change_shipping_address`, pauses the run (LangGraph `interrupt`) and sends the customer a preview built **from the database, not the model**: the order, the refund amount, who approves it and when it arrives. Nothing runs until they confirm; if they decline, only the safe lookups in that step run. No card is shown when the action would fail anyway (e.g. cancelling a shipped order). |
 | `verify` | Checks that every action the reply claims ("has been cancelled", "refund approved") was done by a successful tool call this turn. If not: one retry with only the claimed tool offered, then a safe handoff to a human. A false claim never reaches the customer. |
 
 ### Tools
@@ -96,7 +102,8 @@ graph TD
 `web/` is a Next.js 16 app (Tailwind 4, Motion) deployed on Vercel. `src/support_agent/api.py` is a FastAPI service that runs next to Ollama on the GPU machine and is exposed to the internet with Tailscale Funnel.
 
 - **Sign in as a demo customer.** The API returns a signed token for one persona, and every request resolves the customer from it. Tools get the id through the run config, never from the model or the request body. Conversation threads are namespaced by customer, so a client can't read or continue someone else's.
-- **Live steps, verified replies.** Chat streams Server-Sent Events: the detected intent and each tool call appear as they happen ("Looking up order ORD-10326", "Checking stock and the demand forecast"). The reply text is sent only after the `verify` node has passed it, so a retracted claim never flashes on screen.
+- **Margin notes.** The evidence for each reply (intent, tool calls and their results) sits in a margin beside it on wide screens and inline on phones, streamed live over Server-Sent Events. The reply text is sent only after the `verify` node has passed it, so a retracted claim never flashes on screen.
+- **Asks, then shows.** A confirmation card (`POST /api/chat/confirm` resumes the paused run), order cards that update in place as the agent changes an order, and a "Checked against your account" note listing each action re-read from the database after it ran. A Stop button abandons a turn; nothing irreversible can run without the card.
 - **Feedback.** 👍/👎 on every answer, with an optional "what should it have said". The admin page shows the queue; labeling a 👎 with an intent (existing or new) and an optional policy, then pressing *Apply*, teaches the kNN router and the policy index immediately (`src/support_agent/flywheel.py`). What's learned lives in `data/learned/`, separate from the seed data.
 - **Running on one home GPU box:** one agent turn at a time (a queue beats GPU thrashing), 12 messages per minute per customer, messages capped at 1,000 characters, and a demo copy of the store that admins can reset.
 
@@ -108,6 +115,7 @@ graph TD
 - **The router earns its place.** It doesn't just label messages; each intent maps to a playbook, and escalation intents change the graph's path.
 - **Policies are the source of truth; past conversations set tone only.** Bitext responses are generic templates that contradict this store's rules, so they're retrieved as tone examples and the prompt says their facts may be wrong.
 - **The dataset didn't cover the business.** Bitext has no product or stock intent, so `product_inquiry` was added: 708 synthetic training messages generated by qwen3:14b from real catalog names, and test messages written by hand so the test doesn't reward the generator's own style.
+- **Ask before acting, in code.** Confirmation used to be a prompt question the model asked when it felt like it. It's now a graph step: the model decides, the customer approves, and the card's numbers come from the database. The model can't skip it or misstate the refund.
 - **Verify claims, don't trust them.** The worst support-bot failure is saying "I've cancelled your order" without doing it. The `verify` node compares the reply's claims with this turn's successful tool calls. In testing, qwen3 ignored the retry note as a system message but reliably made the call when the note was a user-role message offering only the claimed tool.
 - **Check the test set before trusting a score.** The first kNN router scored 100%. Bitext contains surface variants of each sentence (lowercased, punctuation stripped, typos), and a random split put variants on both sides. The split now keeps each sentence family on one side and removes training rows within 0.95 cosine similarity of a test row (3,615 of them). kNN dropped to an honest 97.4%.
 - **Serve the fine-tuned model on the same engine as the baseline.** The LoRA router was slower than prompting (253ms) when run through transformers with 4-bit bitsandbytes. Merged, converted to GGUF and served by Ollama like the baseline, it takes 50ms. (Ollama's own safetensors import produced a model that only output "????"; llama.cpp's converter works. See `training/export_ollama.py`.)
