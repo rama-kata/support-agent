@@ -65,6 +65,7 @@ def main():
             "cancel {} I don't need it anymore", "can you cancel my order {}? thanks",
             "I want to cancel {} right now"]):
         add("cancel_ok", o["customer_id"], msg.format(o["id"]), expect_tools=["cancel_order"],
+            expect_confirmation=True,
             expect_db={"order_status": {o["id"]: "cancelled"}})
 
     for o in orders("shipped", 4):
@@ -75,13 +76,13 @@ def main():
         amount = rng.choice([20, 35, 45, 60])
         add("refund_small", o["customer_id"],
             f"one bottle in {o['id']} was corked, can I get ${amount} back?",
-            expect_tools=["request_refund"],
+            expect_tools=["request_refund"], expect_confirmation=True,
             expect_db={"refund_status": {o["id"]: "approved"}})
 
     for o in orders("delivered", 3, "total > 250"):
         add("refund_large", o["customer_id"],
             f"the whole box for {o['id']} arrived smashed, I want a full refund",
-            expect_tools=["request_refund"],
+            expect_tools=["request_refund"], expect_confirmation=True,
             expect_db={"refund_status": {o["id"]: "pending_approval"}},
             must_mention_any=["supervisor", "review"])
 
@@ -99,7 +100,8 @@ def main():
         address = f"{rng.randint(100, 999)} Wisconsin Ave, Bethesda, MD"
         add("change_address", o["customer_id"],
             f"please ship {o['id']} to {address} instead", expect_tools=[
-                "change_shipping_address"], expect_db={"order_address": {o["id"]: address}})
+                "change_shipping_address"], expect_confirmation=True,
+            expect_db={"order_address": {o["id"]: address}})
 
     adults = [c["id"] for c in q(conn, "SELECT id FROM customers WHERE birth_date < '2004-01-01' "
                                        "ORDER BY id")]
@@ -251,6 +253,12 @@ def main():
             # The order is identified by its number or its tracking number.
             must_mention_any=[o["id"]] + ([o["tracking_number"]] if o["tracking_number"] else []),
             must_not_mention=["ORD-12345", "you provided"])
+
+    # ---- Confirmation: the customer says no on the card, so nothing may change.
+    for o in orders("processing", 2):
+        add("hard_decline", o["customer_id"], f"cancel {o['id']}", confirm="decline",
+            expect_confirmation=True, expect_db={"order_status": {o["id"]: "processing"}},
+            must_not_mention=["has been cancelled", "is cancelled", "successfully cancel"])
 
     OUT.parent.mkdir(exist_ok=True)
     with open(OUT, "w") as f:

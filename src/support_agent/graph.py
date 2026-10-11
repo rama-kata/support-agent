@@ -1,8 +1,10 @@
 """The LangGraph support agent.
 
 guard -> blocked -> END
-      -> route -> context -> agent <-> tools
+      -> route -> context -> agent -> approve -> tools -> agent ...
                          -> escalate -> tools -> agent          (intents that must escalate)
+approve pauses the run (LangGraph interrupt) for cancellations, refunds and address changes,
+and only lets them through once the customer confirms.
 agent (final reply) -> verify -> END, or back to agent once if the reply claims an action
                                        that no successful tool call performed
 """
@@ -19,8 +21,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import RemoveMessage, add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.types import Command, interrupt
 
-from support_agent import store
+from support_agent import confirm, store
 from support_agent.config import AGENT_MODEL, OLLAMA_URL, REFUND_AUTO_APPROVE_LIMIT, STORE_NAME
 from support_agent.guardrails import detect_injection, redact_pii
 from support_agent.retrieval import search
@@ -45,6 +48,9 @@ specific SKU before saying whether it is in stock or how long it will last.
 - You cannot see payment or charge records. For billing disputes, double charges or failed \
 payments, use escalate_to_human.
 - Never promise to do something later. Either do it now with a tool or escalate.
+- When you call cancel_order, request_refund or change_shipping_address, the customer is \
+shown a confirmation card automatically. Don't ask for confirmation yourself; call the tool. \
+If a tool result says the customer declined, acknowledge it and say nothing was changed.
 - If the store policies and your tools don't cover a question, say you don't have that \
 information and offer to connect the customer with a person. Never invent a store policy, \
 price, fee or service, and never offer to do something no tool can do.
@@ -138,6 +144,7 @@ class State(TypedDict):
     context: str
     verify_retries: int
     verify_missing: list[str]
+    declined: bool
 
 
 def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpointer=None):
@@ -189,6 +196,22 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
             return {"messages": [retry_llm.invoke(messages)], "verify_missing": []}
         return {"messages": [agent_llm.invoke(messages)]}
 
+    def approve(state: State, config: RunnableConfig):
+        """Pause for the customer's confirmation before any irreversible action."""
+        calls = state["messages"][-1].tool_calls
+        customer_id = config["configurable"]["customer_id"]
+        previews = [p for c in calls if (p := confirm.preview(c, customer_id))]
+        if not previews:
+            return {"declined": False}
+        decision = interrupt({"actions": previews})
+        if (decision or {}).get("decision") == confirm.CONFIRM:
+            return {"declined": False}
+        # Declined: nothing irreversible runs. Safe lookups in the same step still run.
+        pending = {p["call_id"] for p in previews}
+        results = [confirm.declined_message(c) if c["id"] in pending
+                   else tools_by_name[c["name"]].invoke(c, config) for c in calls]
+        return {"messages": results, "declined": True}
+
     def verify(state: State, config: RunnableConfig):
         reply = state["messages"][-1]
         missing = unbacked_claims(state["messages"], reply.content)
@@ -226,6 +249,7 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
     graph.add_node("agent", agent)
     graph.add_node("tools", ToolNode(TOOLS))
     graph.add_node("verify", verify)
+    graph.add_node("approve", approve)
 
     graph.add_edge(START, "guard")
     graph.add_conditional_edges("guard", lambda s: "blocked" if s["blocked"] else "route")
@@ -234,7 +258,8 @@ def build_graph(router: Router | None = None, model: str = AGENT_MODEL, checkpoi
     graph.add_conditional_edges(
         "context", lambda s: "escalate" if s["intent"] in ESCALATE_INTENTS else "agent")
     graph.add_edge("escalate", "tools")
-    graph.add_conditional_edges("agent", tools_condition, {"tools": "tools", END: "verify"})
+    graph.add_conditional_edges("agent", tools_condition, {"tools": "approve", END: "verify"})
+    graph.add_conditional_edges("approve", lambda s: "agent" if s.get("declined") else "tools")
     graph.add_edge("tools", "agent")
     graph.add_conditional_edges(
         "verify", lambda s: "agent" if s.get("verify_missing") else END)
@@ -249,7 +274,25 @@ def turn_reply(messages: list[AnyMessage]) -> str:
                        if isinstance(m, AIMessage) and m.content.strip())
 
 
+def turn_config(customer_id: int, thread_id: str) -> dict:
+    return {"configurable": {"customer_id": customer_id, "thread_id": thread_id},
+            "recursion_limit": 20}
+
+
 def run_turn(graph, text: str, customer_id: int, thread_id: str) -> dict:
-    config = {"configurable": {"customer_id": customer_id, "thread_id": thread_id},
-              "recursion_limit": 20}
-    return graph.invoke({"messages": [HumanMessage(content=text)]}, config)
+    """One customer message. If the agent wants to act, the run pauses: check
+    pending_confirmation() and continue with resume_turn()."""
+    return graph.invoke({"messages": [HumanMessage(content=text)]},
+                        turn_config(customer_id, thread_id))
+
+
+def pending_confirmation(graph, customer_id: int, thread_id: str) -> dict | None:
+    """The confirmation card the run is waiting on, if any."""
+    snapshot = graph.get_state(turn_config(customer_id, thread_id))
+    return snapshot.interrupts[0].value if snapshot.interrupts else None
+
+
+def resume_turn(graph, decision: str, customer_id: int, thread_id: str) -> dict:
+    """Continue a paused run with the customer's answer (confirm.CONFIRM or DECLINE)."""
+    graph.invoke(Command(resume={"decision": decision}), turn_config(customer_id, thread_id))
+    return graph.get_state(turn_config(customer_id, thread_id)).values

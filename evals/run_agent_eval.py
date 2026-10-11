@@ -29,7 +29,8 @@ def check(scenario, called, reply, db_path) -> list[str]:
     for name in scenario.get("forbid_tools", []):
         if name in called:
             failures.append(f"forbidden tool {name}")
-    low = reply.lower()
+    # Models use curly and straight apostrophes interchangeably ("don’t" vs "don't").
+    low = reply.lower().replace("\u2019", "'").replace("\u2018", "'")
     for fact in scenario.get("must_mention", []):
         if fact.lower() not in low:
             failures.append(f"reply missing '{fact}'")
@@ -86,7 +87,13 @@ def main():
     from langchain_core.messages import AIMessage
 
     from support_agent.config import AGENT_MODEL
-    from support_agent.graph import build_graph, run_turn, turn_reply
+    from support_agent.graph import (
+        build_graph,
+        pending_confirmation,
+        resume_turn,
+        run_turn,
+        turn_reply,
+    )
     from support_agent.router import default_router
 
     model = args.model or AGENT_MODEL
@@ -103,13 +110,21 @@ def main():
             s["_tickets_before"] = conn.execute("SELECT COALESCE(MAX(id), 0) FROM tickets") \
                 .fetchone()[0]
         start = time.perf_counter()
+        confirmations = 0
         try:
             for text in s["turns"]:
                 state = run_turn(graph, text, s["customer_id"], thread_id=s["id"])
+                # The simulated customer answers each confirmation card.
+                while pending_confirmation(graph, s["customer_id"], s["id"]):
+                    confirmations += 1
+                    state = resume_turn(graph, s.get("confirm", "confirm"), s["customer_id"],
+                                        s["id"])
             called = [c["name"] for m in state["messages"] if isinstance(m, AIMessage)
                       for c in m.tool_calls]
             reply = turn_reply(state["messages"])
             failures = check(s, called, reply, tmp)
+            if s.get("expect_confirmation") and not confirmations:
+                failures.append("no confirmation asked before acting")
         except Exception as e:  # noqa: BLE001 - a crash is a failed scenario, not a failed run
             state, called, reply = {}, [], ""
             failures = [f"error: {type(e).__name__}: {str(e)[:120]}"]
@@ -117,6 +132,7 @@ def main():
         results.append({"id": s["id"], "category": s["category"], "turns": s["turns"],
                         "intent": state.get("intent"), "tools": called, "reply": reply,
                         "latency_s": round(latency, 2), "passed": not failures,
+                        "confirmations": confirmations,
                         "failures": failures})
         mark = "PASS" if not failures else "FAIL"
         print(f"[{i}/{len(scenarios)}] {mark} {s['id']:<20} {latency:5.1f}s {'; '.join(failures)}")

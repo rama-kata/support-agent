@@ -1,13 +1,22 @@
 "use client";
 
-import { ArrowUp, Menu, PlugZap, Sparkles, X } from "lucide-react";
+import { ArrowUp, Menu, PlugZap, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, streamChat, type Order, type Persona } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  streamChat,
+  streamConfirm,
+  type Decision,
+  type Order,
+  type Persona,
+  type StreamHandlers,
+} from "@/lib/api";
 import { readStore, THREAD_KEY, TOKEN_KEY, writeStore } from "@/lib/session";
-import { Logo } from "@/components/ui/brand";
+import { Bottles, Logo } from "@/components/ui/brand";
 import { AgentMessage, type AgentTurn } from "./agent-message";
 import { OrderSidebar } from "./order-sidebar";
 
@@ -44,6 +53,7 @@ export function ChatApp() {
   const [offline, setOffline] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const signOut = useCallback(() => {
@@ -83,22 +93,29 @@ export function ChatApp() {
         const history = await api.thread(t, saved).catch(() => null);
         if (!history?.messages.length) return;
         setThreadId(saved);
-        setTurns(
-          history.messages.map((m) =>
-            m.role === "customer"
-              ? { role: "customer", key: nextKey(), text: m.text }
-              : {
-                  role: "agent",
-                  key: nextKey(),
-                  turnId: m.turn_id,
-                  text: m.text,
-                  steps: m.steps ?? [],
-                  intent: m.intent,
-                  latencyMs: m.latency_ms ?? undefined,
-                  pending: false,
-                },
-          ),
+        const restored: Turn[] = history.messages.map((m) =>
+          m.role === "customer"
+            ? { role: "customer", key: nextKey(), text: m.text }
+            : {
+                role: "agent",
+                key: nextKey(),
+                turnId: m.turn_id,
+                text: m.text,
+                steps: m.steps ?? [],
+                cards: m.cards ?? [],
+                verified: m.verified,
+                intent: m.intent,
+                latencyMs: m.latency_ms ?? undefined,
+                pending: false,
+              },
         );
+        // A confirmation the customer hadn't answered yet comes back with the conversation.
+        const last = restored.at(-1);
+        if (history.pending && last?.role === "agent") {
+          last.confirm = { actions: history.pending.actions };
+          last.turnId = undefined;
+        }
+        setTurns(restored);
       })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) signOut();
@@ -113,21 +130,11 @@ export function ChatApp() {
   const updateAgent = (key: string, patch: (t: AgentTurn) => AgentTurn) =>
     setTurns((all) => all.map((t) => (t.key === key && t.role === "agent" ? patch(t) : t)));
 
-  async function send(text: string) {
-    const message = text.trim();
-    if (!message || busy || !token) return;
-    setInput("");
-    setDrawer(false);
-    setBusy(true);
-    const agentKey = nextKey();
-    setTurns((all) => [
-      ...all,
-      { role: "customer", key: nextKey(), text: message },
-      { role: "agent", key: agentKey, steps: [], pending: true },
-    ]);
-    const before = orders;
+  const awaiting = turns.some((t) => t.role === "agent" && t.confirm && !t.confirm.decided);
 
-    await streamChat(token, message, threadId, {
+  /** Stream handlers that fill one agent turn; shared by new messages and confirmations. */
+  function handlersFor(agentKey: string): StreamHandlers {
+    return {
       onStart: (id) => {
         setThreadId(id);
         writeStore(THREAD_KEY, id);
@@ -140,6 +147,19 @@ export function ChatApp() {
           ...t,
           steps: t.steps.map((s) => (s.id === id ? { ...s, status: ok ? "ok" : "error", detail } : s)),
         })),
+      // One card per order: a later state (e.g. cancelled) replaces the earlier one.
+      onCard: (order) =>
+        updateAgent(agentKey, (t) => ({ ...t, cards: [...t.cards.filter((c) => c.id !== order.id), order] })),
+      // The action itself hasn't run: its step waits on the customer, not on the server.
+      onConfirm: (actions) =>
+        updateAgent(agentKey, (t) => ({
+          ...t,
+          pending: false,
+          confirm: { actions },
+          steps: t.steps.map((s) =>
+            s.status === "running" ? { ...s, status: "waiting", detail: "waiting for your OK" } : s,
+          ),
+        })),
       onReply: (r) =>
         updateAgent(agentKey, (t) => ({
           ...t,
@@ -148,14 +168,66 @@ export function ChatApp() {
           turnId: r.turn_id,
           intent: r.intent ?? t.intent,
           latencyMs: r.latency_ms,
+          verified: r.verified,
           steps: t.steps.map((s) => (s.status === "running" ? { ...s, status: "ok" } : s)),
         })),
       onError: (msg) => updateAgent(agentKey, (t) => ({ ...t, pending: false, error: msg })),
-    });
+    };
+  }
 
+  async function run(agentKey: string, start: (signal: AbortSignal) => Promise<void>) {
+    const before = orders;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+    await start(controller.signal);
+    abortRef.current = null;
     setBusy(false);
-    loadAccount(token, before).catch(() => {});
+    loadAccount(token!, before).catch(() => {});
     inputRef.current?.focus();
+  }
+
+  async function send(text: string) {
+    const message = text.trim();
+    if (!message || busy || awaiting || !token) return;
+    setInput("");
+    setDrawer(false);
+    const agentKey = nextKey();
+    setTurns((all) => [
+      ...all,
+      { role: "customer", key: nextKey(), text: message },
+      { role: "agent", key: agentKey, steps: [], cards: [], pending: true },
+    ]);
+    await run(agentKey, (signal) => streamChat(token, message, threadId, handlersFor(agentKey), signal));
+  }
+
+  async function decide(agentKey: string, decision: Decision) {
+    if (!token || !threadId || busy) return;
+    updateAgent(agentKey, (t) => ({
+      ...t,
+      pending: true,
+      confirm: t.confirm && { ...t.confirm, decided: decision },
+      // The paused step runs (or is declined) in the resumed stream, which reports its result.
+      steps: t.steps.map((s) => (s.status === "waiting" ? { ...s, status: "running", detail: undefined } : s)),
+    }));
+    await run(agentKey, (signal) => streamConfirm(token, threadId, decision, handlersFor(agentKey), signal));
+  }
+
+  /** Stop: abandon the stream. Lookups may have run; nothing irreversible runs unconfirmed. */
+  function stop() {
+    abortRef.current?.abort();
+    setTurns((all) =>
+      all.map((t) =>
+        t.role === "agent" && t.pending
+          ? {
+              ...t,
+              pending: false,
+              stopped: true,
+              steps: t.steps.map((s) => (s.status === "running" ? { ...s, status: "error", detail: "stopped" } : s)),
+            }
+          : t,
+      ),
+    );
   }
 
   async function rate(turn: AgentTurn, rating: 1 | -1, comment?: string) {
@@ -253,32 +325,32 @@ export function ChatApp() {
             </Link>
           </div>
           <div className="flex items-center gap-1">
-            <span className="hidden items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-xs text-ok sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-ok" /> Agent online
+            <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted sm:inline-flex">
+              <span className="size-1.5 rounded-full bg-ink" /> Agent online
             </span>
           </div>
         </header>
 
         <div ref={scrollRef} className="scrollbar-thin flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-4 py-8">
+          <div className="mx-auto max-w-3xl px-4 py-8 xl:max-w-[1040px]">
             {turns.length === 0 && customer && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="pt-6 sm:pt-12">
-                <p className="inline-flex items-center gap-1.5 text-sm text-gold-ink">
-                  <Sparkles className="size-4" /> Signed in as {customer.first_name}
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="pt-6 sm:pt-12 xl:ml-[240px]">
+                <p className="inline-flex items-center gap-2 text-sm text-muted">
+                  <Bottles className="h-4 w-auto text-ink" /> Signed in as {customer.first_name}
                 </p>
                 <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
                   How can we help today?
                 </h1>
                 <p className="mt-3 max-w-lg text-ink-soft">
                   I can track and cancel orders, change addresses, handle refunds and check stock.
-                  You&apos;ll see each step as I take it.
+                  Beside every answer, I note where it came from, and I ask before changing anything.
                 </p>
                 <div className="mt-8 grid gap-2 sm:grid-cols-2">
                   {prompts.map((p) => (
                     <button
                       key={p}
                       onClick={() => send(p)}
-                      className="rounded-xl border border-line bg-surface px-4 py-3 text-left text-sm text-ink-soft shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:text-ink"
+                      className="rounded-xl border border-line bg-surface px-4 py-3 text-left text-[15px] text-ink-soft transition hover:border-ink hover:text-ink"
                     >
                       {p}
                     </button>
@@ -290,13 +362,23 @@ export function ChatApp() {
             <div className="space-y-7">
               {turns.map((t) =>
                 t.role === "customer" ? (
-                  <motion.div key={t.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-                    <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-wine px-4 py-2.5 text-[15px] leading-relaxed text-wine-ink shadow-card">
+                  <motion.div
+                    key={t.key}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-end xl:ml-[240px]"
+                  >
+                    <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-base leading-relaxed text-bg">
                       {t.text}
                     </p>
                   </motion.div>
                 ) : (
-                  <AgentMessage key={t.key} turn={t} onRate={(r, c) => rate(t, r, c)} />
+                  <AgentMessage
+                    key={t.key}
+                    turn={t}
+                    onRate={(r, c) => rate(t, r, c)}
+                    onDecide={(d) => decide(t.key, d)}
+                  />
                 ),
               )}
             </div>
@@ -309,7 +391,7 @@ export function ChatApp() {
               e.preventDefault();
               send(input);
             }}
-            className="mx-auto flex max-w-3xl items-end gap-2 px-4 py-3"
+            className="mx-auto flex max-w-3xl items-end gap-2 px-4 py-3 xl:max-w-[1040px] xl:pl-[276px]"
           >
             <label htmlFor="composer" className="sr-only">
               Message
@@ -327,17 +409,31 @@ export function ChatApp() {
               }}
               rows={1}
               maxLength={1000}
-              placeholder={busy ? "Working on it…" : "Ask about an order or a product"}
-              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink shadow-card sm:text-[15px] outline-none transition placeholder:text-muted focus:border-accent"
+              disabled={awaiting}
+              placeholder={
+                awaiting ? "Answer the card above first" : busy ? "Working on it… you can stop me" : "Ask about an order or a product"
+              }
+              className="max-h-40 min-h-[46px] flex-1 resize-none rounded-2xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition placeholder:text-muted focus:border-ink disabled:opacity-60 sm:text-[15px]"
             />
-            <button
-              type="submit"
-              disabled={busy || !input.trim()}
-              aria-label="Send"
-              className="grid size-[46px] shrink-0 place-items-center rounded-2xl bg-wine text-wine-ink shadow-card transition hover:bg-wine-strong disabled:opacity-40"
-            >
-              <ArrowUp className="size-5" />
-            </button>
+            {busy ? (
+              <button
+                type="button"
+                onClick={stop}
+                aria-label="Stop"
+                className="grid size-[46px] shrink-0 place-items-center rounded-2xl border border-ink text-ink transition hover:bg-surface-2"
+              >
+                <Square className="size-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={awaiting || !input.trim()}
+                aria-label="Send"
+                className="grid size-[46px] shrink-0 place-items-center rounded-2xl bg-ink text-bg transition hover:bg-ink-soft disabled:opacity-40"
+              >
+                <ArrowUp className="size-5" />
+              </button>
+            )}
           </form>
           <p className="pb-3 text-center text-xs text-muted">
             Demo store. Orders are synthetic and reset regularly.

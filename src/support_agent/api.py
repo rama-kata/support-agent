@@ -9,6 +9,7 @@ then the reply once the verify node has passed it, so a retracted claim never re
 """
 
 import json
+import logging
 import os
 import secrets
 import shutil
@@ -26,13 +27,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from support_agent import flywheel, store
+from support_agent import confirm, flywheel, store
 from support_agent.config import DATA, MINIMUM_AGE, STORE_DB, STORE_NAME
 from support_agent.graph import build_graph, is_customer, turn_reply
 from support_agent.router import INTENTS, default_router
 
+log = logging.getLogger("support_agent.api")
 DEMO = DATA / "demo"
 DEMO_STORE = DEMO / "store.db"
 APP_DB = DEMO / "app.db"
@@ -223,6 +226,8 @@ def _tool_summary(msg: ToolMessage) -> dict:
         data = json.loads(msg.content)
     except ValueError:
         return {"ok": True}
+    if isinstance(data, dict) and data.get("declined"):
+        return {"ok": True, "detail": "you chose not to"}
     if isinstance(data, dict) and "error" in data:
         return {"ok": False, "detail": data["error"]}
     if isinstance(data, list):
@@ -233,7 +238,52 @@ def _tool_summary(msg: ToolMessage) -> dict:
     return {"ok": True}
 
 
-def _stream_turn(customer_id: int, text: str, thread_id: str):
+ORDER_TOOLS = {"lookup_order", "cancel_order", "change_shipping_address", "request_refund"}
+
+
+def _order_card(customer_id: int, order_id: str) -> dict | None:
+    """The order as the customer should see it now, straight from the database."""
+    order = store.get_order(customer_id, order_id)
+    if not order:
+        return None
+    return {"id": order["id"], "status": order["status"], "placed": order["created_at"],
+            "total": order["total"], "tracking": order["tracking_number"],
+            "items": [{"name": i["name"], "quantity": i["quantity"], "price": i["unit_price"]}
+                      for i in order["items"]],
+            "refunds": order["refunds"]}
+
+
+def _verified(customer_id: int, messages: list, start: int) -> list[str]:
+    """Actions this turn claims, each re-checked against the database before it's listed."""
+    checks = []
+    calls = {c["id"]: c for m in messages[start:] if isinstance(m, AIMessage) for c in m.tool_calls}
+    for m in messages[start:]:
+        if not isinstance(m, ToolMessage):
+            continue
+        try:
+            data = json.loads(m.content)
+        except ValueError:
+            continue
+        if not isinstance(data, dict) or not data.get("ok"):
+            continue
+        args = calls.get(m.tool_call_id, {}).get("args", {})
+        order = store.get_order(customer_id, str(args.get("order_id", ""))) if args else None
+        if m.name == "cancel_order" and order and order["status"] == "cancelled":
+            checks.append(f"{order['id']} is cancelled")
+        elif m.name == "request_refund" and order and order["refunds"]:
+            r = order["refunds"][-1]
+            checks.append(f"${r['amount']:.2f} refund recorded on {order['id']} "
+                          f"({r['status'].replace('_', ' ')})")
+        elif m.name == "change_shipping_address" and order and \
+                order["shipping_address"] == args.get("new_address"):
+            checks.append(f"{order['id']} now ships to {order['shipping_address']}")
+        elif m.name == "escalate_to_human" and data.get("ticket_id"):
+            checks.append(f"Ticket #{data['ticket_id']} is open with our team")
+    return checks
+
+
+def _stream(customer_id: int, thread_id: str, graph_input):
+    """Run the graph until it answers or pauses for a confirmation, streaming each step."""
     config = {"configurable": {"customer_id": customer_id, "thread_id": thread_id},
               "recursion_limit": 20}
     global _waiting
@@ -250,54 +300,63 @@ def _stream_turn(customer_id: int, text: str, thread_id: str):
         yield _event("error", message="The demo is busy right now. Please try again shortly.",
                      detail="queue_timeout")
         return
+    # Tool calls made before a confirmation pause belong to this turn too, so the resumed
+    # stream can still tell which order a cancel or refund was for.
+    calls: dict[str, dict] = {c["id"]: c for m in graph.get_state(config).values.get("messages", [])
+                              if isinstance(m, AIMessage) for c in m.tool_calls}
     try:
-        state = None
-        for update in graph.stream({"messages": [HumanMessage(content=text)]}, config,
-                                   stream_mode="updates"):
+        for update in graph.stream(graph_input, config, stream_mode="updates"):
             for node, delta in update.items():
-                delta = delta or {}
+                delta = delta if isinstance(delta, dict) else {}
                 if node == "guard" and delta.get("pii_found"):
                     yield _event("guard", redacted=delta["pii_found"])
                 if node == "route":
                     yield _event("intent", intent=delta.get("intent"))
-                for msg in delta.get("messages", []) if isinstance(delta, dict) else []:
+                for msg in delta.get("messages", []):
                     if isinstance(msg, AIMessage):
                         for call in msg.tool_calls:
+                            calls[call["id"]] = call
                             yield _event("tool_start", id=call["id"], name=call["name"],
                                          label=_tool_label(call["name"], call["args"]))
                     elif isinstance(msg, ToolMessage):
                         yield _event("tool_end", id=msg.tool_call_id, **_tool_summary(msg))
-        state = graph.get_state(config).values
+                        order_id = calls.get(msg.tool_call_id, {}).get("args", {}).get("order_id")
+                        if msg.name in ORDER_TOOLS and order_id and \
+                                (card := _order_card(customer_id, str(order_id))):
+                            yield _event("card", order=card)
+        snapshot = graph.get_state(config)
     finally:
         _gpu.release()
 
+    if snapshot.interrupts:
+        # Paused before an irreversible action: the customer answers via /api/chat/confirm.
+        yield _event("confirm", thread_id=thread_id, **snapshot.interrupts[0].value)
+        return
+
+    state = snapshot.values
     messages = state["messages"]
+    ids = [m.id for m in messages]
     turn_id = next(m.id for m in reversed(messages) if is_customer(m))
-    tools = [c["name"] for m in messages[[m.id for m in messages].index(turn_id):]
-             if isinstance(m, AIMessage) for c in m.tool_calls]
+    first = ids.index(turn_id)
+    tools = [c["name"] for m in messages[first:] if isinstance(m, AIMessage) for c in m.tool_calls]
     reply = turn_reply(messages)
     latency_ms = int((time.perf_counter() - start) * 1000)
     with app_db() as conn:
         conn.execute("INSERT OR REPLACE INTO turns VALUES (?,?,?,?,?,?,?,?,?)",
                      (turn_id, datetime.now(UTC).isoformat(), customer_id, thread_id,
-                      messages[[m.id for m in messages].index(turn_id)].content, reply,
-                      state.get("intent"), json.dumps(tools), latency_ms))
+                      messages[first].content, reply, state.get("intent"), json.dumps(tools),
+                      latency_ms))
     yield _event("reply", turn_id=turn_id, text=reply, intent=state.get("intent"),
-                 tools=tools, latency_ms=latency_ms, blocked=state.get("blocked", False))
+                 tools=tools, latency_ms=latency_ms, blocked=state.get("blocked", False),
+                 verified=_verified(customer_id, messages, first))
 
 
-@app.post("/api/chat")
-def chat(body: ChatRequest, customer_id: int = Depends(current_customer)):
-    rate_limit(customer_id)
-    # Threads are namespaced by customer, so a client can't continue someone else's.
-    thread_id = body.thread_id or uuid.uuid4().hex
-    if not thread_id.startswith(f"c{customer_id}-"):
-        thread_id = f"c{customer_id}-{thread_id[-32:]}"
-
+def _sse(customer_id: int, thread_id: str, graph_input) -> StreamingResponse:
     def events():
         try:
-            yield from _stream_turn(customer_id, body.message.strip(), thread_id)
-        except Exception as e:  # noqa: BLE001 - report to the client instead of a broken stream
+            yield from _stream(customer_id, thread_id, graph_input)
+        except Exception as e:  # report to the client instead of a broken stream
+            log.exception("chat stream failed (thread %s)", thread_id)
             yield _event("error", message="Something went wrong on our side. Please try again.",
                          detail=type(e).__name__)
 
@@ -305,12 +364,45 @@ def chat(body: ChatRequest, customer_id: int = Depends(current_customer)):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _own_thread(customer_id: int, thread_id: str | None) -> str:
+    """Threads are namespaced by customer, so a client can't continue someone else's."""
+    thread_id = thread_id or uuid.uuid4().hex
+    if not thread_id.startswith(f"c{customer_id}-"):
+        thread_id = f"c{customer_id}-{thread_id[-32:]}"
+    return thread_id
+
+
+@app.post("/api/chat")
+def chat(body: ChatRequest, customer_id: int = Depends(current_customer)):
+    rate_limit(customer_id)
+    thread_id = _own_thread(customer_id, body.thread_id)
+    config = {"configurable": {"thread_id": thread_id}}
+    if graph.get_state(config).interrupts:
+        raise HTTPException(409, "Answer the confirmation above first.")
+    return _sse(customer_id, thread_id, {"messages": [HumanMessage(content=body.message.strip())]})
+
+
+class ConfirmRequest(BaseModel):
+    thread_id: str
+    decision: str = Field(pattern=f"^({confirm.CONFIRM}|{confirm.DECLINE})$")
+
+
+@app.post("/api/chat/confirm")
+def chat_confirm(body: ConfirmRequest, customer_id: int = Depends(current_customer)):
+    """The customer's answer to a confirmation card; the paused run continues."""
+    rate_limit(customer_id)
+    thread_id = _own_thread(customer_id, body.thread_id)
+    if not graph.get_state({"configurable": {"thread_id": thread_id}}).interrupts:
+        raise HTTPException(409, "There's nothing waiting for confirmation.")
+    return _sse(customer_id, thread_id, Command(resume={"decision": body.decision}))
+
+
 @app.get("/api/threads/{thread_id}")
 def thread(thread_id: str, customer_id: int = Depends(current_customer)):
     if not thread_id.startswith(f"c{customer_id}-"):
         raise HTTPException(404, "Conversation not found.")
-    messages = graph.get_state({"configurable": {"thread_id": thread_id}}).values.get(
-        "messages", [])
+    snapshot = graph.get_state({"configurable": {"thread_id": thread_id}})
+    messages = snapshot.values.get("messages", [])
     with app_db() as conn:
         meta = {r["turn_id"]: r for r in conn.execute(
             "SELECT turn_id, intent, latency_ms FROM turns WHERE thread_id = ?", (thread_id,))}
@@ -324,8 +416,22 @@ def thread(thread_id: str, customer_id: int = Depends(current_customer)):
             out.append({"role": "agent", "text": turn_reply(messages[: nxt]), "turn_id": m.id,
                         "steps": _turn_steps(messages[i + 1: nxt]),
                         "intent": row["intent"] if row else None,
-                        "latency_ms": row["latency_ms"] if row else None})
-    return {"thread_id": thread_id, "messages": out}
+                        "latency_ms": row["latency_ms"] if row else None,
+                        "verified": _verified(customer_id, messages[: nxt], i),
+                        "cards": _turn_cards(customer_id, messages[i + 1: nxt])})
+    pending = snapshot.interrupts[0].value if snapshot.interrupts else None
+    return {"thread_id": thread_id, "messages": out, "pending": pending}
+
+
+def _turn_cards(customer_id: int, messages: list) -> list[dict]:
+    """Orders a past turn looked at or changed, as they are now (one card per order)."""
+    ids = []
+    for m in messages:
+        for call in getattr(m, "tool_calls", None) or []:
+            order_id = call.get("args", {}).get("order_id")
+            if call["name"] in ORDER_TOOLS and order_id and str(order_id).upper() not in ids:
+                ids.append(str(order_id).upper())
+    return [card for oid in ids if (card := _order_card(customer_id, oid))]
 
 
 def _turn_steps(messages: list) -> list[dict]:
