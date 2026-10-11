@@ -14,11 +14,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Browsers read these as literals, so they can't use CSS variables: white and ink.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
-    { media: "(prefers-color-scheme: dark)", color: "#16181B" },
-  ],
+  // Browsers read this as a literal, so it can't use a CSS variable: white.
+  themeColor: "#FFFFFF",
 };
 
 

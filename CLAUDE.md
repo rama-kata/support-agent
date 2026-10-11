@@ -5,7 +5,7 @@ The brand is **cellar** (one word, lowercase in the wordmark). The store was pre
 ## Design (web/)
 
 - **Two colors only: ink `#16181B` and white `#FFFFFF`.** Every other value is a tint of the two, defined in `web/src/app/tokens.css`. No accent hue, no status colors, no gradients, no shadows.
-- **White background by default; dark mode swaps the two colors** (follows the OS). There is no theme toggle. Cards on white are set apart by a 1px border, not a fill.
+- **Always white.** No dark mode and no theme toggle: the demo looks the same for every visitor, whatever their system setting. Cards on white are set apart by a 1px border, not a fill.
 - **Colors come from `tokens.css` only.** Never put raw HEX, rgb() or hsl() values in components; use the Tailwind utilities mapped in `globals.css`. Exception: the `themeColor` meta in `layout.tsx`, which browsers read as literals.
 - **State is shown by shape, icon and words, never by hue**: dashed outline for "waiting" or warnings, filled for done or primary, outline for secondary, strikethrough for cancelled.
 - **Filled means primary.** Only the customer's messages and the one main action at a time are filled. Other buttons are outlines; agent replies are plain text.
@@ -14,7 +14,7 @@ The brand is **cellar** (one word, lowercase in the wordmark). The store was pre
 - **Chat layout: Margin Notes.** Agent replies read as plain text; the evidence for each reply (tool steps and results) sits in the margin beside it on desktop and inline above it on phones.
 - 1px borders define cards. Interactive edges use the `line-strong` token (3:1); `line` is for decorative edges.
 - Body text at least 16px on phones (iOS zooms into smaller inputs), no text below 12px, touch targets at least 44px on touch screens (`pointer-coarse:`).
-- Check contrast (4.5:1 text, 3:1 UI boundaries) in both modes when adding or changing a tint.
+- Check contrast (4.5:1 text, 3:1 UI boundaries) when adding or changing a tint.
 
 ## Agent tone
 
