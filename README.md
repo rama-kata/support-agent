@@ -46,16 +46,20 @@ Customers ask about two topics with no intent, no policy and no training data: w
 
 Reproduce with `uv run python evals/run_flywheel.py` (runs on temporary copies of the store and indexes).
 
-### Intent router (325 held-out messages, 28 intents)
+### Intent router (365 held-out messages, 28 intents)
 
-| Router | Bitext held-out (270) | Product, simple (15) | Product, hard (40) | Latency p50 | Training |
-|---|---|---|---|---|---|
-| Prompting: qwen2.5:3b, intent list in prompt | 80.7% | 93.3% | 87.5% | 124ms | none |
-| Retrieval: kNN vote over bge-small embeddings | 97.4% | 100% | 100% | 55ms | none |
-| **Fine-tuned: QLoRA on Qwen2.5-3B, served by Ollama (q4_K_M)** | **98.1%** | **100%** | **100%** | **50ms** | 12 min, RTX 3060 |
-| Same adapter in transformers (4-bit bitsandbytes) | 99.3% | 100% | not run | 253ms | (same) |
+| Router | Bitext held-out (270) | Product, simple (15) | Product, hard (40) | **Written by a person (40)** | Latency p50 | Training |
+|---|---|---|---|---|---|---|
+| Prompting: qwen2.5:3b, intent list in prompt | 80.7–82.2% | 86.7–93.3% | 80–87.5% | **85.0%** | 120ms | none |
+| Retrieval: kNN vote over bge-small embeddings | 97.4% | 100% | 100% | **95.0%** | 55ms | none |
+| **Fine-tuned: QLoRA on Qwen2.5-3B, served by Ollama (q4_K_M)** | **98.1%** | **100%** | **100%** | **97.5%** | **57ms** | 12 min, RTX 3060 |
+| Same adapter in transformers (4-bit bitsandbytes) | 99.3% | 100% | not run | not run | 253ms | (same) |
 
-The product sets were written by hand (by Claude, not by the model that generated the synthetic training data). The hard set uses slang, typos and brand nicknames ("yo do yall have hennessy", "need a 30 rack of natty light, is it back yet"). Every message in them is a product question, so they measure recall for that intent, not false positives; the Bitext set covers those. A set written by a person is planned (`evals/human_product_questions.txt`).
+The product sets measure recall for the product intent (every message in them is a product question); the Bitext set covers false positives. The simple and hard sets were written by Claude, not by the model that generated the synthetic training data. The hard set uses slang, typos and brand nicknames.
+
+**The person-written set** (`evals/human_product_questions.txt`, 40 questions written by me as a customer would type them) is the most realistic test: budgets and occasions ("nice bottle for my anniversary"), rare bottles ("is the 2020 caymus cab still available"), quantities for events, and slang. Almost every miss across all three routers is the same kind of message: "need 2 cases of champagne for a company party, can you do that", "can I buy a full case of malbec and get a discount". These are routed to `place_order`, and they are about buying as much as about products. The fine-tuned router's one miss ("can I preorder wine for pickup Saturday") is arguably right. The set surfaced a real ambiguity in the label scheme rather than a model failure; splitting "buying in quantity" from product questions is the next labeling decision.
+
+**Where a model runs changes its answers.** The fine-tuned router scores 98.1% on Bitext with Ollama on the GPU (57ms) and 99.6% when Ollama falls back to the CPU because the GPU is full (about 510ms). Both are deterministic across repeated runs; the CPU and GPU kernels round differently and flip a few borderline labels. Reported numbers are the GPU runs, which is how the demo serves it. The prompting baseline varies between 80.7% and 82.2% across runs for the same reason.
 
 Each run is also recorded in [ml-eval-harness](https://github.com/rama-kata/ml-eval-harness) (`evals/results/results.db`), so `uv run evalrun compare --db evals/results/results.db` lists them side by side.
 
