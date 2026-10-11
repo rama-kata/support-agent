@@ -2,69 +2,71 @@
 @import "./tokens.css";
 
 @theme inline {
-  /* Utility names map onto tokens.css; components never see raw colors. */
-  --color-bg: var(--color-bg-base);
-  --color-bg-deep: var(--color-bg-sunken);
-  --color-surface: var(--color-bg-surface);
-  --color-surface-2: var(--color-bg-raised);
-  --color-ink: var(--color-text-primary);
-  --color-ink-soft: var(--color-text-soft);
-  --color-muted: var(--color-text-secondary);
-  --color-line: var(--color-border);
-  --color-line-strong: var(--color-border-strong);
-  /* Burgundy: filled surfaces only (buttons, customer bubbles) with linen text on top. */
-  --color-wine: var(--color-brand-primary);
-  --color-wine-strong: var(--color-action-hover);
-  --color-wine-soft: var(--color-brand-primary-soft);
-  --color-wine-ink: var(--color-text-primary);
-  /* Gold: the accent for text, links, icons, active borders and focus. */
-  --color-accent: var(--color-brand-secondary);
-  --color-gold: var(--color-brand-secondary);
-  --color-gold-ink: var(--color-brand-secondary);
-  --color-gold-soft: var(--color-brand-secondary-soft);
-  --color-ok: var(--color-status-ok);
-  --color-ok-soft: var(--color-status-ok-soft);
-  --color-warn: var(--color-status-warn);
-  --color-warn-soft: var(--color-status-warn-soft);
-  --color-bad: var(--color-status-bad);
-  --color-bad-soft: var(--color-status-bad-soft);
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-playfair);
+  /* Utility names map onto tokens.css; components never see raw colors.
+     Two colors: anything "filled" is ink on chalk (chalk on ink in dark mode). */
+  --color-bg: var(--c-bg);
+  --color-bg-deep: var(--c-sunken);
+  --color-surface: var(--c-raised);
+  --color-surface-2: var(--c-soft);
+  --color-ink: var(--c-fg);
+  --color-ink-soft: var(--c-fg-soft);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-edge);
+  /* "wine" = the filled primary: buttons and the customer's messages. */
+  --color-wine: var(--c-fg);
+  --color-wine-strong: var(--c-fg-soft);
+  --color-wine-soft: var(--c-soft);
+  --color-wine-ink: var(--c-bg);
+  /* No accent hue: emphasis is the foreground itself. */
+  --color-accent: var(--c-fg);
+  --color-gold: var(--c-fg);
+  --color-gold-ink: var(--c-fg);
+  --color-gold-soft: var(--c-soft);
+  /* No status colors: states are shown by shape, icon and words. */
+  --color-ok: var(--c-fg);
+  --color-ok-soft: var(--c-soft);
+  --color-warn: var(--c-fg);
+  --color-warn-soft: var(--c-soft);
+  --color-bad: var(--c-fg);
+  --color-bad-soft: var(--c-soft);
+  --font-sans: var(--font-instrument);
+  --font-display: var(--font-bricolage);
   --font-mono: var(--font-mono-face);
-  --shadow-card: var(--elevation-card);
-  --shadow-float: var(--elevation-float);
+  --shadow-card: none;
+  --shadow-float: none;
 }
 
 body {
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  font-feature-settings: "ss01", "cv11";
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Flat page background: no glows or gradients (CLAUDE.md). */
 .paper {
-  background: var(--color-bg-base);
+  background: var(--c-bg);
 }
 
 .font-display {
-  font-family: var(--font-playfair), ui-serif, Georgia, serif;
+  font-family: var(--font-bricolage), "Arial Black", ui-sans-serif, sans-serif;
+  letter-spacing: -0.035em;
 }
 
 ::selection {
-  background: var(--color-brand-primary);
-  color: var(--color-text-primary);
+  background: var(--c-fg);
+  color: var(--c-bg);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-brand-secondary);
+  outline: 2px solid var(--c-fg);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--c-edge) transparent;
 }
 
 @keyframes pulse-dot {

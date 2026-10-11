@@ -1,17 +1,20 @@
-# Cellar & Co. support agent: project rules
+# cellar support agent: project rules
 
-The store is **Cellar & Co.** (not "Cellar & Company").
+The brand is **cellar** (one word, lowercase in the wordmark). The store was previously "Cellar & Co."; prose may still say "Cellar".
 
 ## Design (web/)
 
-- **Dark only.** There is no light mode or theme toggle.
-- **Colors come from `web/src/app/tokens.css`.** Never put raw HEX, rgb() or hsl() values in components; use the Tailwind utilities mapped to those tokens in `globals.css`. The one exception is the `themeColor` meta value in `layout.tsx`, which browsers read as a literal.
-- **No generic AI gradients**: no purple, blue or neon green, and no glow or gradient backgrounds.
-- **Burgundy (`--color-brand-primary`) is for filled surfaces only** (buttons, the customer's chat bubbles) with light text on top. On the dark background it is 1.4:1, invisible as text, icons, links or focus rings. Use gold (`--color-brand-secondary`) for accents, links, icons and focus.
-- **Sharp boundaries.** 1px borders define cards; no floating or blurred shadows. Inputs and other interactive boundaries use `--color-border-strong` (3:1 against the background); `--color-border` is for decorative card edges.
-- **Typography:** Playfair Display for headings, Inter for body and chat text, JetBrains Mono for IDs and code.
-- Body text at least 16px on phones (iOS zooms into smaller inputs), no text below 12px, and touch targets at least 44px on touch screens (`pointer-coarse:`).
-- Check contrast (4.5:1 for text, 3:1 for UI boundaries) when adding or changing a color.
+- **Two colors only: ink `#16181B` and chalk `#F1F1EC`.** Every other value is a tint of the two, defined in `web/src/app/tokens.css`. No accent hue, no status colors, no gradients, no shadows.
+- **Light by default; dark mode swaps the two colors** (follows the OS). There is no theme toggle.
+- **Colors come from `tokens.css` only.** Never put raw HEX, rgb() or hsl() values in components; use the Tailwind utilities mapped in `globals.css`. Exception: the `themeColor` meta in `layout.tsx`, which browsers read as literals.
+- **State is shown by shape, icon and words, never by hue**: dashed outline for "waiting" or warnings, filled for done or primary, outline for secondary, strikethrough for cancelled.
+- **Filled means primary.** Only the customer's messages and the one main action at a time are filled. Other buttons are outlines; agent replies are plain text.
+- **Logo:** the `Logo` component in `components/ui/brand.tsx`, "cellar" with the double l drawn as two bottles, one full and one empty. `Bottles` is the icon form.
+- **Typography:** Bricolage Grotesque for display and headings, Instrument Sans for body and chat, JetBrains Mono for order IDs, tracking numbers and data.
+- **Chat layout: Margin Notes.** Agent replies read as plain text; the evidence for each reply (tool steps and results) sits in the margin beside it on desktop and inline above it on phones.
+- 1px borders define cards. Interactive edges use the `line-strong` token (3:1); `line` is for decorative edges.
+- Body text at least 16px on phones (iOS zooms into smaller inputs), no text below 12px, touch targets at least 44px on touch screens (`pointer-coarse:`).
+- Check contrast (4.5:1 text, 3:1 UI boundaries) in both modes when adding or changing a tint.
 
 ## Agent tone
 

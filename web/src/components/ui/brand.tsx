@@ -1,17 +1,35 @@
-import { Wine } from "lucide-react";
 import clsx from "clsx";
 
-export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
+const BOTTLE = "M9 0h7v17c0 7 8 8 8 15v36a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4V32c0-7 8-8 8-15V0z";
+
+/** The two bottles: one full, one empty (the one waiting on stock, the one you asked about). */
+export function Bottles({ className }: { className?: string }) {
   return (
-    <span className={clsx("inline-flex items-center gap-2.5", className)}>
-      <span className="grid size-8 place-items-center rounded-lg bg-wine text-wine-ink shadow-card">
-        <Wine className="size-4" strokeWidth={2.2} aria-hidden />
-      </span>
-      {!compact && (
-        <span className="font-display text-[1.15rem] font-semibold tracking-tight text-ink">
-          Cellar <span className="text-gold">&amp;</span> Co.
-        </span>
-      )}
+    <svg viewBox="0 0 56 80" aria-hidden className={className}>
+      <path d={BOTTLE} fill="currentColor" />
+      <path d={BOTTLE} transform="translate(30 8)" fill="none" stroke="currentColor" strokeWidth={4} />
+    </svg>
+  );
+}
+
+/** The wordmark: "cellar" with the double l drawn as the two bottles. */
+export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
+  if (compact) return <Bottles className={clsx("h-7 w-auto text-ink", className)} />;
+  return (
+    <span
+      role="img"
+      aria-label="cellar"
+      className={clsx("inline-flex items-baseline font-display text-[1.75rem] font-extrabold leading-none text-ink", className)}
+      style={{ letterSpacing: "-0.045em" }}
+    >
+      <span aria-hidden>ce</span>
+      <svg viewBox="0 0 25 72" aria-hidden className="mx-[0.03em] h-[0.76em] w-auto overflow-visible">
+        <path d={BOTTLE} fill="currentColor" />
+      </svg>
+      <svg viewBox="0 0 25 72" aria-hidden className="mx-[0.03em] h-[0.66em] w-auto overflow-visible">
+        <path d={BOTTLE} fill="none" stroke="currentColor" strokeWidth={3} />
+      </svg>
+      <span aria-hidden>ar</span>
     </span>
   );
 }
@@ -24,11 +42,12 @@ export function GitHubMark({ className }: { className?: string }) {
   );
 }
 
+// Two colors: status is told by fill and line style, never by hue.
 const STATUS_STYLES: Record<string, string> = {
-  processing: "bg-gold-soft text-gold-ink",
-  shipped: "bg-wine-soft text-accent",
-  delivered: "bg-ok-soft text-ok",
-  cancelled: "bg-surface-2 text-muted line-through decoration-1",
+  processing: "border border-dashed border-ink text-ink",
+  shipped: "border border-ink text-ink",
+  delivered: "bg-ink text-bg",
+  cancelled: "border border-line text-muted line-through decoration-1",
 };
 
 export function StatusPill({ status }: { status: string }) {

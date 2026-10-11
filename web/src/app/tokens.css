@@ -1,39 +1,35 @@
-/* Cellar & Co. design tokens. The only place colors are defined (see CLAUDE.md).
-   Dark only. Contrast figures are WCAG ratios against --color-bg-base unless noted. */
+/* cellar design tokens: the only place colors are defined (see CLAUDE.md).
+   Two colors, ink and chalk. Every other value is a tint of the two.
+   Light by default; dark mode swaps them. Contrast figures are WCAG ratios. */
 :root {
-  /* Brand Identity */
-  --color-brand-primary: #581825;    /* Deep Burgundy / Merlot: fills only (1.4:1 as text) */
-  --color-brand-secondary: #E3C18A;  /* Aged Oak / Champagne Gold Accent: 11.0:1 */
+  --c-ink: #16181B;
+  --c-chalk: #F1F1EC;
 
-  /* Neutral Surfaces */
-  --color-bg-base: #121110;          /* Obsidian Black (rich charcoal, not pure black) */
-  --color-bg-surface: #1E1C1A;       /* Dark Barrel / Charcoal Gray */
-  --color-border: #332F2C;           /* Muted Earth: decorative card edges */
+  /* Light (default) */
+  --c-bg: var(--c-chalk);          /* page */
+  --c-fg: var(--c-ink);            /* text, filled controls: 15.7:1 */
+  --c-fg-soft: #3A3C3E;            /* secondary headings: 11.0:1 */
+  --c-muted: #606262;              /* secondary text: 5.4:1 */
+  --c-raised: #FFFFFF;             /* cards that sit on the page */
+  --c-soft: #E6E6E1;               /* hover rows, chips, tints */
+  --c-sunken: #E9E9E4;             /* wells, the page edge */
+  --c-line: #CACAC6;               /* decorative card edges */
+  --c-edge: #848584;               /* inputs and interactive edges: 3.3:1 */
 
-  /* Typography & Actions */
-  --color-text-primary: #F7F5F2;     /* Crisp Linen White: 17.3:1 */
-  --color-text-secondary: #A39E98;   /* Light Ash Gray: 7.1:1 */
-  --color-action-hover: #6F2232;     /* Velvet Red */
+  color-scheme: light;
+}
 
-  /* Derived (each checked for contrast) */
-  --color-bg-sunken: #0C0B0A;          /* below the base, for wells and the page edge */
-  --color-bg-raised: #282522;        /* chips, hover rows; secondary text 5.7:1 on it */
-  --color-border-strong: #77706A;    /* inputs and interactive edges: 3.1-3.9:1 on all surfaces */
-  --color-text-soft: #D6D1CB;        /* between primary and secondary: 11.2:1 on surface */
-  --color-brand-primary-soft: #2E171C; /* burgundy tint; gold 9.8:1, linen 15.4:1 on it */
-  --color-brand-secondary-soft: #2C2519; /* gold tint; gold 8.9:1 on it */
-
-  /* Status: earthy, no neon (each 6.9:1 or better on its own tint) */
-  --color-status-ok: #A3C4A3;               /* sage */
-  --color-status-ok-soft: #1C2A1F;
-  --color-status-warn: #E6B46C;             /* amber */
-  --color-status-warn-soft: #30251A;
-  --color-status-bad: #EC9590;              /* muted rose-red */
-  --color-status-bad-soft: #341D1D;
-
-  /* Sharp boundaries: no floating, blurred shadows. Borders define containers. */
-  --elevation-card: none;
-  --elevation-float: 0 0 0 1px var(--color-border);
-
-  color-scheme: dark;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: var(--c-ink);
+    --c-fg: var(--c-chalk);
+    --c-fg-soft: #D0D1CE;
+    --c-muted: #A2A3A1;            /* 7.0:1 */
+    --c-raised: #1C1F22;
+    --c-soft: #22252A;
+    --c-sunken: #101214;
+    --c-line: #3D3F41;
+    --c-edge: #7C7D7C;             /* 4.3:1 */
+    color-scheme: dark;
+  }
 }
