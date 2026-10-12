@@ -209,6 +209,40 @@ def agent_status() -> dict:
     return value
 
 
+_warm_lock = threading.Lock()
+_last_warm = 0.0
+
+
+def warm_agent_model() -> bool:
+    """Start loading the agent model in the background, so a visitor's first reply doesn't
+    wait for it. At most once a minute; skipped if Ollama already has it loaded."""
+    global _last_warm
+    with _warm_lock:
+        now = time.monotonic()
+        if now - _last_warm < 60:
+            return False
+        _last_warm = now
+    threading.Thread(target=_warm, daemon=True).start()
+    return True
+
+
+def _warm():
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/ps", timeout=2) as r:
+            if any(m["name"] == AGENT_MODEL for m in json.load(r)["models"]):
+                return
+        # A generate request without a prompt only loads the model; Ollama's keep-alive
+        # setting still decides when it unloads.
+        request = urllib.request.Request(
+            f"{OLLAMA_URL}/api/generate", data=json.dumps({"model": AGENT_MODEL}).encode(),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=180) as r:
+            r.read()
+        log.info("warmed %s", AGENT_MODEL)
+    except (OSError, ValueError, KeyError) as e:
+        log.warning("could not warm %s: %s", AGENT_MODEL, e)
+
+
 @app.get("/api/health")
 def health():
     """ok means the API is up; agent says whether the models behind it can answer."""
@@ -226,11 +260,13 @@ def login(body: Login):
         raise HTTPException(404, "Unknown demo customer.")
     exp = datetime.now(UTC) + TOKEN_TTL
     token = jwt.encode({"sub": str(body.customer_id), "exp": exp}, JWT_SECRET, "HS256")
+    warm_agent_model()  # they'll pick a question while it loads
     return {"token": token, "customer": persona(body.customer_id)}
 
 
 @app.get("/api/me")
 def me(customer_id: int = Depends(current_customer)):
+    warm_agent_model()  # a returning visitor opening the chat with a saved session
     orders = store.list_orders(customer_id, limit=12)
     return {"customer": persona(customer_id),
             "orders": [store.get_order(customer_id, o["id"]) for o in orders]}
