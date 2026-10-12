@@ -4,6 +4,15 @@ A customer support agent for **cellar**, a fictional wine, beer and spirits reta
 
 Built with **LangGraph** (orchestration), **LlamaIndex** (retrieval), **MCP** (tool serving) and **Qwen** models on two consumer GPUs.
 
+**Live demo: [cellar-support.vercel.app](https://cellar-support.vercel.app)** · it runs on a home machine, so it's online while that machine is (the status dot on the page says which).
+
+| Asks before acting | Shows its work |
+|---|---|
+| ![Confirmation card before cancelling an order](docs/img/chat-confirm.png) | ![Margin notes beside a stock answer](docs/img/chat-stock.png) |
+| ![Order card updated after the cancellation, with checks against the database](docs/img/chat-done.png) | ![Admin page for labeling feedback](docs/img/admin.png) |
+
+<p align="center"><img src="docs/img/phone-confirm.png" alt="Confirmation card on a phone" width="260"></p>
+
 > **Status:** complete (3 days). The agent, tools, guardrails, MCP server, evals, a router comparison (prompting vs. retrieval vs. LoRA fine-tuning), a FastAPI service, a Next.js web demo, and a measured feedback loop.
 
 ## Results
